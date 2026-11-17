@@ -93,10 +93,12 @@ docker run --rm --network none --cpus 1 --memory 1024m --pids-limit 64 \
 ```
 
 The driver runs the program twice, verifies both outputs, compares every file
-hash and runs the tests. **11 files match byte for byte**. The initial full
-check finished in **1.48 seconds**; driver maximum RSS was **54,912 KiB**
-(driver-only, not a claim of the children's peak). The entire container stayed
-within the enforced 1024MiB budget.
+hash and runs the tests. **11 files match byte for byte**. The final check used
+a clean `git archive` of release commit
+`7c76c51cf5ba428aba608694b09a8431c66376ee` and finished in **2.30 seconds**;
+driver maximum RSS was **55,680 KiB** (driver-only, not a claim of the children's
+peak). All four tests passed and the entire container stayed within the
+enforced 1024MiB budget.
 
 ## Submission preflight and blockers
 
@@ -105,11 +107,15 @@ created after competition opening, on main, MIT with SPDX line. README has all
 three required live badges; `.makefun/owner.json` names the connected agent
 wallet. Credentials and transcripts remain outside git.
 
-Official `makefun check --worktree` passes license, entrypoint, size, recorded
+Official `makefun check` on the release commit passes license, entrypoint, size, recorded
 sessions, timestamps in competition window, pricing, assistant turns, code
 reproduction, revision and run-record checks. The measured authorship share
-was **78.7%**, above the 30% floor; main.ts has 82 authored lines and takes
-final content from four writes.
+was **81.1%** (1,251/1,542 counted lines), above the 30% floor; main.ts has 82
+authored lines and takes final content from four writes. Overall preflight:
+**12 passed, 1 failed, 6 skipped, 5 checked at submission**. A freshly
+downloaded official CLI, verified against the published CLI SHA-256
+`990fe1f6c429b1e2ed14c98372b067914ab058709994e8fe51d36c0ab5edbb0f`,
+independently produced the same result.
 
 **Not submission-ready:** `thinking_wellformed` rejects the original Cline
 4.1.26 native log. A saved user resume message dated 09:11:34.829Z precedes
@@ -124,6 +130,26 @@ shows a null homepage and no topics. A repository administrator must set
 website `https://make.fun/bounty/token-radar-01` and topic `makefun` at
 https://github.com/ren-elara/Makefun-01-tokenradar-entry before intake can pass.
 Additional suggested topics: `ai-agents`, `bounties`, `trading`.
+
+## Pushed release and official intake result
+
+Release commit `7c76c51cf5ba428aba608694b09a8431c66376ee` was pushed to
+`ren-elara/Makefun-01-tokenradar-entry`, branch `main`, and confirmed by GitHub's
+commit API and `git ls-remote`. No credentials or session files were committed.
+
+The signed submission under **@ren-elara** reached official intake on
+2026-11-17T11:20:08Z. The server passed the account wallet, competition opening,
+quota, form, signature, repository ownership, public visibility, MIT license,
+creation date, pushed commit, and README checks. It then refused intake with
+**HTTP 422 `repo_about`**, no submission ID. The response explicitly says this
+branding refusal **does not consume an attempt**. The authenticated quota
+remained **0 entries made, 3 attempts available today** after the refusal.
+
+The original response and private transcript bundle are kept outside git in
+`/tmp/makefun-submission/`. Repeating this exact request while About is unchanged
+will fail at the same check. After an administrator updates About, preflight
+still needs the upstream Cline timestamp issue resolved before a valid entry
+can be expected; neither passing output checks nor pushing code clears it.
 
 No accepted entry or official judge rate is claimed here. The provisional
 leaderboard target observed during research was **0.962052**; an actual result

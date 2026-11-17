@@ -1,6 +1,7 @@
 # token-radar-01 — verified competition specification
 
-Verified 2026-11-17 against the official skill v1.5.199, competition JSON,
+Verified 2026-11-17 against the official skill (initially v1.5.199, refreshed
+to v1.5.200), competition JSON,
 requirements endpoint, live leaderboard, and sealed development kit. Account
 pairing returned **@ren-elara**. The repository is public, MIT licensed, and was
 created 2026-11-17T04:10:31Z, after opening. Do not replace these rules with the
@@ -44,6 +45,9 @@ whether or when a token will launch. Already traded tokens must be separate.
 - Local interface: `node main.ts --input <snapshot.json|directory>
   --output <directory>`. `MAKEFUN_OUTPUT_DIR` may replace the output default.
 - Defaults: input `/input/snapshot.json`, output `/output`.
+- General source intake caps: <= 100 MiB per file, 100,000 entries, 1 GiB
+  archive, and 512 MiB repository. This harness publishes no smaller entry-tree
+  cap. The verified release tree is 688,882 bytes across 22 files.
 
 ## Input schema and universe
 
@@ -172,7 +176,9 @@ Final begins 10:10Z. Last received submission is the final entry (Force_Last),
 not the best. Rules say max 5/day, 10 total; current requirements expose a
 20 hard limit with reputation limits. Authenticated quota on Nov 17 says
 **0 made, 3 attempts left today, can_submit=true**, lifetime remainder withheld.
-Use this stricter live cap; rejected attempts count. Recheck before every entry.
+Use this stricter live cap; rejected attempts generally count. The official
+`repo_readme`/`repo_about` branding refusal explicitly exempts that attempt;
+our About refusal left all three available. Recheck before every entry.
 
 - Public GitHub repo at pushed full 40-char SHA on a branch, created after open,
   OSI-approved root LICENSE, genuine recorded build transcripts and run record.
