@@ -1,0 +1,25 @@
+# Local official kit, authentication, transcripts, and generated builds
+.makefun-kit/
+.env
+.env.*
+!.env.example
+*keypair*.json
+wallet.json
+transcripts*.tar.gz
+out/
+out-*/
+.tmp/
+tmp/
+*.log
+
+# Node/Python tooling; the submitted program has no installed dependencies
+node_modules/
+.npm/
+coverage/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+.DS_Store

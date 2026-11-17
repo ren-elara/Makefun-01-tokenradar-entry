@@ -1,0 +1,17 @@
+/* Expanded protocol view prioritizes the value build and actual interaction plan. */
+.focus-detail .method-band{display:none}
+.focus-detail .metric-strip{padding:14px 0}
+.focus-detail .controls{margin-top:14px}
+.focus-detail .detail-full{grid-template-columns:minmax(0,.6fr) minmax(600px,1fr)}
+.focus-detail .detail-panel{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;padding:14px 18px}
+.focus-detail .detail-top,.focus-detail .detail-panel h2,.focus-detail .detail-meta,.focus-detail .detail-value,.focus-detail .detail-band{grid-column:1/-1}
+.focus-detail .detail-panel h2{margin:5px 0;font-size:22px}
+.focus-detail .detail-value{font-size:29px;margin:9px 0 0}
+.focus-detail .detail-block{padding:10px 0}
+.focus-detail .detail-block:has(.detail-plan),.focus-detail .detail-block:last-child{grid-column:1/-1}
+.focus-detail .detail-full .scenario-grid{grid-template-columns:repeat(3,1fr);gap:6px}
+.focus-detail .scenario-grid input{padding:4px}
+.focus-detail .detail-plan{margin:6px 0 0;gap:0 16px}
+.focus-detail .detail-plan li{padding-bottom:9px}
+@media(max-width:1050px){.focus-detail .detail-full{grid-template-columns:1fr}.focus-detail .detail-panel{order:-1}}
+@media(max-width:600px){.focus-detail .detail-panel{display:block}}
