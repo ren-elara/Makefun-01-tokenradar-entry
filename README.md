@@ -41,11 +41,14 @@ official `vendor/makefun-board.ts`.
 - Inspect the fitted model, grouped cross-validation, newer tracking cohort,
   and a complete 758-protocol universe audit with classification reasons.
 
-ORBIT 1.1 adds sorting by scenario net, market-cap-aware traded exports, safe
-spreadsheet text cells, shared scenario limits including zero allocation and
-eligibility, strict snapshot context validation, and tie-aware rank diagnostics.
-Switching from traded tokens to quick filters restores the value ranking;
-expanded protocol details now restore the normal layout when changing views.
+The dashboard follows the system's light or dark theme, adapts its token table
+to mobile cards, and offers a keyboard-accessible protocol drawer. Shared engine
+helpers drive search, category, chain, momentum, risk and scenario filters, plus
+numeric sorting and CSV exports. Momentum and risk badges describe snapshot
+context only; they do not estimate launch probability or contract safety.
+ORBIT 1.1 valuations and existing engine exports remain compatible. Scenario
+limits include zero allocation and eligibility, with strict input validation
+and tie-aware rank diagnostics.
 
 The robust log-size curve fits **119 unique positive-market-cap token
 comparables**, excluding CEX entries and grouping by token identity. The exact

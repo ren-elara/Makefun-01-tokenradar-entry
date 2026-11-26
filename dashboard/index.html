@@ -3,115 +3,234 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
-  <title>ORBIT | Protocol research desk</title>
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="ORBIT is an offline token launch research radar with transparent conditional valuations and snapshot signals.">
+  <title>ORBIT | Token launch radar</title>
   <link rel="stylesheet" href="app.css">
   <link rel="stylesheet" href="focus.css">
+  <script defer src="../data.js"></script>
+  <script defer src="engine.js"></script>
+  <script defer src="app.js"></script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to dashboard</a>
   <header class="topbar">
-    <a class="brand" href="#board" aria-label="ORBIT board"><span class="brand-mark">O</span><span>ORBIT</span><small>PROTOCOL RESEARCH DESK</small></a>
-    <nav class="primary-nav" aria-label="Primary">
-      <button class="nav-button active" data-view="board">Radar</button>
-      <button class="nav-button" data-view="model">Model lab</button>
-      <button class="nav-button" data-view="universe">Universe</button>
+    <a class="brand" href="#board" aria-label="ORBIT radar home">
+      <span class="brand-mark" aria-hidden="true">O</span>
+      <span>ORBIT</span>
+      <small>TOKEN LAUNCH RESEARCH</small>
+    </a>
+    <nav class="primary-nav" aria-label="Dashboard views">
+      <button type="button" class="nav-button active" data-view="board" aria-controls="board-view" aria-pressed="true">Radar</button>
+      <button type="button" class="nav-button" data-view="model" aria-controls="model-view" aria-pressed="false">Model lab</button>
+      <button type="button" class="nav-button" data-view="universe" aria-controls="universe-view" aria-pressed="false">Universe</button>
     </nav>
-    <div class="asof"><span class="live-dot"></span><span>FROZEN SNAPSHOT</span><b id="asof-date">2026-11-14</b></div>
+    <div class="asof">
+      <span class="live-dot" aria-hidden="true"></span>
+      <span>FROZEN SNAPSHOT</span>
+      <b id="asof-date">Loading</b>
+    </div>
   </header>
 
-  <main>
+  <main id="main-content" tabindex="-1">
+    <noscript><p class="app-error">Enable JavaScript to explore the local snapshot. No network connection is required.</p></noscript>
+    <div id="app-error" class="app-error" role="alert" hidden></div>
+
     <section class="metric-strip" aria-label="Snapshot summary">
-      <div class="metric"><strong id="watch-count">40/40</strong><span>watchlist ranked</span><small>Official pre-token floor, fully covered</small></div>
-      <div class="metric"><strong id="rank-count">—</strong><span>ranked, no token recorded</span><small id="rank-sub">Computing snapshot coverage</small></div>
-      <div class="metric"><strong id="trade-count">—</strong><span>traded comparables</span><small id="trade-sub">Used to fit conditional value curve</small></div>
-      <div class="metric"><strong id="excluded-count">—</strong><span>set aside</span><small>Versioned and product-category controls</small></div>
-      <div class="metric metric-model"><strong><span class="accent-text" id="elasticity">0.49</span><span class="metric-times">×</span></strong><span>TVL elasticity</span><small>Robust fit · grouped cross-validation</small></div>
+      <div class="metric">
+        <strong id="watch-count">—</strong>
+        <span>watchlist ranked</span>
+        <small>Official pre-token floor, fully covered</small>
+      </div>
+      <div class="metric">
+        <strong id="rank-count">—</strong>
+        <span>ranked, no token recorded</span>
+        <small id="rank-sub">Checking snapshot coverage</small>
+      </div>
+      <div class="metric">
+        <strong id="trade-count">—</strong>
+        <span>traded comparables</span>
+        <small id="trade-sub">Unique positive-cap token anchors</small>
+      </div>
+      <div class="metric">
+        <strong id="excluded-count">—</strong>
+        <span>set aside</span>
+        <small>Version and product-category controls</small>
+      </div>
+      <div class="metric metric-model">
+        <strong><span class="accent-text" id="elasticity">—</span><span class="metric-times">×</span></strong>
+        <span>TVL elasticity</span>
+        <small>Robust fit · grouped cross-validation</small>
+      </div>
     </section>
 
-    <section class="method-band" aria-label="Research method">
+    <section class="method-band" aria-labelledby="radar-title">
       <div class="method-copy">
-        <span class="eyebrow">THE QUESTION</span>
-        <h1>What might a token be worth?</h1>
-        <p>A conditional market-cap estimate if a protocol launched with its current record. Not a launch forecast, allocation promise, or expected return.</p>
-        <div class="formula-line"><span class="label-chip">VALUE CURVE</span><code id="formula">exp(16.5371 + 0.4928 × ln(TVL / $100M))</code></div>
+        <span class="eyebrow">TOKEN LAUNCH RADAR</span>
+        <h1 id="radar-title">What might a token be worth?</h1>
+        <p>Compare protocols through a conditional market-cap estimate, snapshot momentum and visible risk flags. Launch intent, rewards and contract safety are unobserved.</p>
+        <div class="formula-line">
+          <span class="label-chip">VALUE CURVE</span>
+          <code id="formula">Loading the local valuation model</code>
+        </div>
       </div>
-      <div class="chart-panel">
-        <div class="chart-head"><div><span class="eyebrow">TRADED ANCHORS</span><strong>Market cap vs. TVL</strong></div><span class="chart-legend"><i></i>observed <b></b> fitted curve</span></div>
-        <canvas id="model-chart" width="760" height="260" aria-label="Market cap versus total value locked and fitted value curve"></canvas>
-        <div class="axis-foot"><span id="fit-sample">119 unique token comparables · CEX excluded</span><span>USD · log scale</span></div>
-      </div>
+      <figure class="chart-panel" style="margin:0" aria-labelledby="chart-title">
+        <figcaption class="chart-head">
+          <div><span class="eyebrow">TRADED ANCHORS</span><strong id="chart-title">Market cap vs. TVL</strong></div>
+          <span class="chart-legend"><i aria-hidden="true"></i>observed <b aria-hidden="true"></b>fitted curve</span>
+        </figcaption>
+        <canvas id="model-chart" width="760" height="280" role="img" aria-label="Observed market caps versus TVL, fitted curve and cross-fitted residual band, on logarithmic axes" aria-describedby="fit-sample">
+          Market-cap and TVL data are also available in the Universe table. Model coefficients and validation metrics appear in Model lab.
+        </canvas>
+        <div class="axis-foot"><span id="fit-sample">Loading comparables</span><span>USD · log scale</span></div>
+      </figure>
       <div class="evidence-panel">
-        <span class="eyebrow">OUT-OF-FOLD · FIVE GROUPED SPLITS</span>
-        <div class="evidence-row"><span>Median factor error</span><strong id="cv-error">3.50×</strong></div>
-        <div class="evidence-row"><span>Within 3× observed cap</span><strong id="cv-within">45%</strong></div>
-        <div class="evidence-row"><span>Spearman · prediction / cap</span><strong id="cv-rank">0.41</strong></div>
-        <div class="evidence-rule"></div>
-        <div class="evidence-row baseline"><span>Starter baseline factor error</span><strong id="baseline-error">5.24×</strong></div>
-        <p class="evidence-note" id="recent-note">Recent tracked cohort is small; see Model lab.</p>
-        <button class="text-button" data-view="model">Inspect assumptions <span aria-hidden="true">→</span></button>
+        <span class="eyebrow">OUT-OF-FOLD · FIVE IDENTITY SPLITS</span>
+        <div class="evidence-row"><span>Median factor error</span><strong id="cv-error">—</strong></div>
+        <div class="evidence-row"><span>Within 3× observed cap</span><strong id="cv-within">—</strong></div>
+        <div class="evidence-row"><span>Spearman · prediction / cap</span><strong id="cv-rank">—</strong></div>
+        <div class="evidence-rule" aria-hidden="true"></div>
+        <div class="evidence-row baseline"><span>Starter baseline factor error</span><strong id="baseline-error">—</strong></div>
+        <p class="evidence-note" id="recent-note">Cross-sectional validation; tracking start is not launch date.</p>
+        <button type="button" class="text-button" data-view="model">Inspect assumptions <span aria-hidden="true">→</span></button>
       </div>
     </section>
 
-    <section class="controls" id="controls">
+    <section class="controls" id="controls" aria-label="Filter and sort protocols">
       <div class="tab-group" role="group" aria-label="Protocol status">
-        <button class="seg active" data-status="Ranked">Pre-token <span id="pre-tab-count">195</span></button>
-        <button class="seg" data-status="Traded">Traded <span id="traded-tab-count">402</span></button>
-        <button class="seg" data-status="Set aside">Set aside <span id="aside-tab-count">161</span></button>
+        <button type="button" class="seg active" data-status="Ranked" aria-pressed="true">Pre-token <span id="pre-tab-count">—</span></button>
+        <button type="button" class="seg" data-status="Traded" aria-pressed="false">Traded <span id="traded-tab-count">—</span></button>
+        <button type="button" class="seg" data-status="Set aside" aria-pressed="false">Set aside <span id="aside-tab-count">—</span></button>
       </div>
-      <label class="search-box"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search protocol, chain, category" autocomplete="off"></label>
+      <label class="search-box">
+        <span aria-hidden="true">⌕</span><span class="sr-only">Search protocol, chain or category</span>
+        <input id="search" type="search" placeholder="Search protocol, chain, category" autocomplete="off">
+      </label>
       <label class="select-wrap"><span class="sr-only">Category</span><select id="category-filter"><option value="">All categories</option></select></label>
       <label class="select-wrap"><span class="sr-only">Chain</span><select id="chain-filter"><option value="">All chains</option></select></label>
-      <div class="quick-filters" role="group" aria-label="Quick filters">
-        <button class="filter-chip" data-quick="watch">Watchlist <span id="watch-filter-count">40</span></button>
-        <button class="filter-chip" data-quick="worth">Worth farming <span id="worth-count">—</span></button>
-        <button class="filter-chip" data-quick="pilot">Pilot</button>
+      <label class="select-wrap"><span class="sr-only">TVL momentum</span><select id="momentum-filter"><option value="">All momentum</option><option>Growing</option><option>Steady</option><option>Fading</option><option>Unknown</option></select></label>
+      <label class="select-wrap"><span class="sr-only">Snapshot risk context</span><select id="risk-filter"><option value="">All risk context</option><option>Elevated</option><option>Caution</option><option>Unassessed</option></select></label>
+      <div class="quick-filters" role="group" aria-label="Scenario quick filters">
+        <button type="button" class="filter-chip" data-quick="watch" aria-pressed="false">Watchlist <span id="watch-filter-count">—</span></button>
+        <button type="button" class="filter-chip" data-quick="worth" aria-pressed="false">Worth farming <span id="worth-count">—</span></button>
+        <button type="button" class="filter-chip" data-quick="pilot" aria-pressed="false">Pilot</button>
       </div>
-      <span class="results-count" id="result-count">195 of 195</span>
+      <label class="mobile-sort">Sort by
+        <select id="mobile-sort">
+          <option value="rank:1">Rank</option>
+          <option value="name:1">Name A–Z</option>
+          <option value="name:-1">Name Z–A</option>
+          <option value="implied_value_usd:-1">Value: highest</option>
+          <option value="implied_value_usd:1">Value: lowest</option>
+          <option value="tvl_usd:-1">TVL: highest</option>
+          <option value="tvl_usd:1">TVL: lowest</option>
+          <option value="change_7d:-1">7D change: highest</option>
+          <option value="change_7d:1">7D change: lowest</option>
+          <option value="net:-1">Scenario net: highest</option>
+          <option value="net:1">Scenario net: lowest</option>
+        </select>
+      </label>
+      <span class="results-count" id="result-count" role="status" aria-live="polite">Loading protocols</span>
     </section>
 
-    <section class="board-layout" id="board-view">
+    <p class="scenario-notice" id="scenario-notice">Loading scenario assumptions</p>
+    <div class="board-tools" id="board-tools">
+      <button type="button" id="csv-export">↓ Export current view CSV</button>
+      <button type="button" id="reset-filters">Reset filters</button>
+      <span id="match-indicator">The page and board.json share one engine.</span>
+    </div>
+
+    <section class="board-layout" id="board-view" aria-label="Token radar and protocol details">
       <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th class="rank-col"><button data-sort="rank"># <span>↕</span></button></th>
-            <th class="protocol-col"><button data-sort="name">Protocol <span>↕</span></button></th>
-            <th><button data-sort="implied_value_usd"><span id="value-label">Implied value</span> <span>↕</span></button></th>
-            <th class="band-col">P10 — P90</th>
-            <th><button data-sort="tvl_usd">TVL <span>↕</span></button></th>
-            <th><button data-sort="change_7d">7D Δ <span>↕</span></button></th>
-            <th class="age-col">Tracked</th>
-            <th class="net-col"><button data-sort="net">Net / scenario <span>↕</span></button></th>
-            <th>Farm</th>
-          </tr></thead>
+        <table id="protocol-table" aria-describedby="signal-key">
+          <caption id="signal-key">Snapshot signals: Growing ≥ +5% TVL / 7D; Fading ≤ −5%. Risk flags describe missing context, recent tracking, product exclusions or a ≥15% drawdown. Unassessed does not mean safe.</caption>
+          <thead>
+            <tr>
+              <th scope="col" class="rank-col" aria-sort="ascending"><button type="button" data-sort="rank"># <span aria-hidden="true">↕</span></button></th>
+              <th scope="col" class="protocol-col"><button type="button" data-sort="name">Protocol <span aria-hidden="true">↕</span></button></th>
+              <th scope="col"><button type="button" data-sort="implied_value_usd"><span id="value-label">Implied value</span> <span aria-hidden="true">↕</span></button></th>
+              <th scope="col" class="band-col">P10 — P90</th>
+              <th scope="col"><button type="button" data-sort="tvl_usd">TVL <span aria-hidden="true">↕</span></button></th>
+              <th scope="col"><button type="button" data-sort="change_7d">7D Δ <span aria-hidden="true">↕</span></button></th>
+              <th scope="col" class="age-col">Tracked</th>
+              <th scope="col" class="net-col"><button type="button" data-sort="net">Net / scenario <span aria-hidden="true">↕</span></button></th>
+              <th scope="col">Farm</th>
+              <th scope="col">Snapshot signals</th>
+            </tr>
+          </thead>
           <tbody id="protocol-rows"></tbody>
         </table>
-        <div class="empty-state" id="empty-state" hidden>No protocols match the current filters.</div>
+        <p class="empty-state" id="empty-state" hidden>No protocols match these filters. Use Reset filters to see this status again.</p>
       </div>
-      <aside class="detail-panel" id="detail-panel" aria-live="polite">
-        <div class="detail-empty"><span class="detail-icon">↗</span><span class="eyebrow">PROTOCOL BRIEF</span><h2>Select a protocol</h2><p>Review its implied value, snapshot evidence, downside range, scenario economics and a concrete interaction plan.</p></div>
+      <aside class="detail-panel" id="detail-panel" aria-label="Protocol details" tabindex="-1">
+        <div class="detail-empty"><span class="detail-icon" aria-hidden="true">↗</span><span class="eyebrow">PROTOCOL BRIEF</span><h2>Select a protocol</h2><p>Inspect its value construction, risk context, scenario economics and interaction plan.</p></div>
       </aside>
     </section>
 
-    <section class="research-view" id="model-view" hidden>
-      <div class="section-head"><div><span class="eyebrow">MODEL LAB · ORBIT 1.1</span><h2>A market-cap curve, not a launch oracle.</h2><p>One robust, Huber-fitted log-size regression, trained on unique positive-cap comparables. Growth and tracking age remain visible context; the cross-section does not support reliable launch-probability coefficients.</p></div><div class="model-badge">CONDITIONAL VALUE<br><b>NOT LAUNCH ODDS</b></div></div>
+    <section class="research-view" id="model-view" aria-labelledby="model-title" hidden>
+      <div class="section-head">
+        <div><span class="eyebrow">MODEL LAB · ORBIT 1.1</span><h2 id="model-title">A transparent conditional value curve.</h2><p>One robust Huber fit of log market cap against log TVL, trained on unique positive-cap comparables. Growth and tracking age are visible heuristics. The snapshot supplies no measured launch probability.</p></div>
+        <div class="model-badge">CONDITIONAL VALUE<br><b>LAUNCH ODDS UNOBSERVED</b></div>
+      </div>
       <div class="research-grid">
-        <article class="research-block"><span class="eyebrow">FIT</span><h3 id="lab-equation">ln(cap) = α + β ln(TVL / $100M)</h3><div class="coefficient-row"><span>Intercept, α</span><b id="fit-alpha">—</b></div><div class="coefficient-row"><span>TVL elasticity, β</span><b id="fit-beta">—</b></div><div class="coefficient-row"><span>Comparable count</span><b id="fit-n">—</b></div><div class="coefficient-row"><span>Residual band · P10 / P90</span><b id="fit-band">—</b></div><p class="fine-print">Cross-fitted residual percentiles describe dispersion among traded tokens; they are not a confidence interval for a future token.</p></article>
-        <article class="research-block"><span class="eyebrow">GROUPED VALIDATION</span><h3>Five deterministic identity folds</h3><div class="metric-big"><b id="lab-error">—</b><span>median multiplicative error</span></div><div class="validation-bars"><div><span>Orbit 1.1</span><div class="bar-track"><i id="orbit-bar"></i></div><b id="orbit-bar-label">—</b></div><div><span>Starter</span><div class="bar-track"><i id="starter-bar"></i></div><b id="starter-bar-label">—</b></div></div><div class="coefficient-row"><span>Within 3×</span><b id="lab-within">—</b></div><div class="coefficient-row"><span>Spearman rank</span><b id="lab-rank">—</b></div><p class="fine-print">The snapshot contains 119 non-CEX positive-cap comparables. Grouped folds prevent identity overlap; this is cross-sectional validation, not a future-launch backtest.</p></article>
-        <article class="research-block"><span class="eyebrow">NEWER TRACKING COHORT</span><h3 id="cohort-title">Tracked since 2026-01-01</h3><div class="metric-big"><b id="cohort-n">—</b><span>positive-cap tokens · held out</span></div><div class="cohort-stats"><div><b id="cohort-error">—</b><span>median factor error</span></div><div><b id="cohort-within">—</b><span>within 3×</span></div><div><b id="cohort-rank">—</b><span>rank correlation</span></div></div><p class="fine-print">Only comparables with a listed_at date in this cohort qualify. Small samples produce unstable estimates; tracking start is not token-launch date.</p></article>
-        <article class="research-block wide"><span class="eyebrow">WHAT THE SNAPSHOT CAN AND CANNOT SAY</span><h3>Evidence before inference</h3><div class="limits-grid"><div><b>Observed</b><p>TVL, seven-day TVL change, DefiLlama tracking date, market-cap record, category and chain labels at one frozen date.</p></div><div><b>Not observed</b><p>Fees, revenue, holders, wallets, tokenomics, allocation, user growth, launch intent, exploit history or historical market cap.</p></div><div><b>Selection effect</b><p>Market-cap comparables are survivors with a token record. Their distribution is not a launch probability for protocols without one.</p></div><div><b>Missing values</b><p>Missing tracking dates display unknown and use 365d for seasoning. Null seven-day change uses a neutral growth adjustment.</p></div></div></article>
+        <article class="research-block">
+          <span class="eyebrow">FIT</span><h3 id="lab-equation">ln(cap) = α + β ln(TVL / $100M)</h3>
+          <div class="coefficient-row"><span>Intercept, α</span><b id="fit-alpha">—</b></div>
+          <div class="coefficient-row"><span>TVL elasticity, β</span><b id="fit-beta">—</b></div>
+          <div class="coefficient-row"><span>Comparable count</span><b id="fit-n">—</b></div>
+          <div class="coefficient-row"><span>Residual band · P10 / P90</span><b id="fit-band">—</b></div>
+          <p class="fine-print">Cross-fitted residual percentiles describe traded-token dispersion. They do not form a confidence interval for an individual future token.</p>
+        </article>
+        <article class="research-block">
+          <span class="eyebrow">GROUPED VALIDATION</span><h3>Five deterministic identity folds</h3>
+          <div class="metric-big"><b id="lab-error">—</b><span>median multiplicative error</span></div>
+          <div class="validation-bars" aria-label="Median error comparison; smaller is better">
+            <div><span>Orbit 1.1</span><div class="bar-track" aria-hidden="true"><i id="orbit-bar"></i></div><b id="orbit-bar-label">—</b></div>
+            <div><span>Starter</span><div class="bar-track" aria-hidden="true"><i id="starter-bar"></i></div><b id="starter-bar-label">—</b></div>
+          </div>
+          <div class="coefficient-row"><span>Within 3×</span><b id="lab-within">—</b></div>
+          <div class="coefficient-row"><span>Spearman rank</span><b id="lab-rank">—</b></div>
+          <p class="fine-print">Identity grouping prevents the same token entering both sides of a fold. This evaluates a traded-token cross-section rather than a future-launch backtest.</p>
+        </article>
+        <article class="research-block">
+          <span class="eyebrow">NEWER TRACKING COHORT</span><h3 id="cohort-title">Loading cohort</h3>
+          <div class="metric-big"><b id="cohort-n">—</b><span>positive-cap tokens · newer tracking</span></div>
+          <div class="cohort-stats">
+            <div><b id="cohort-error">—</b><span>median factor error</span></div>
+            <div><b id="cohort-within">—</b><span>within 3×</span></div>
+            <div><b id="cohort-rank">—</b><span>rank correlation</span></div>
+          </div>
+          <p class="fine-print">Training uses the earlier cohort when it has at least eight comparables; otherwise the full fit is used. Small cohorts produce unstable estimates. Tracking start is not token-launch date.</p>
+        </article>
+        <article class="research-block wide">
+          <span class="eyebrow">READ THE EVIDENCE</span><h3>What these signals describe</h3>
+          <div class="limits-grid">
+            <div><b>Observed</b><p>TVL, seven-day TVL change, tracking date, token record, category and chain labels at one frozen date.</p></div>
+            <div><b>Unobserved</b><p>Launch intent, allocation, fees, holders, wallet eligibility, tokenomics, security audits and historical market cap.</p></div>
+            <div><b>Selection effect</b><p>Comparables are surviving traded tokens. Their valuation dispersion cannot establish launch odds for another protocol.</p></div>
+            <div><b>Missing values</b><p>Missing dates display unknown and use 365 days for seasoning. Missing change uses neutral growth and Unknown momentum.</p></div>
+          </div>
+        </article>
       </div>
     </section>
 
-    <section class="research-view" id="universe-view" hidden>
-      <div class="section-head"><div><span class="eyebrow">SNAPSHOT AUDIT</span><h2>Every protocol has a place.</h2><p>All 758 rows remain discoverable. The official 40-protocol watchlist is authoritative; outside it, token-bearing products, versions, exchanges and bridge/staking derivatives are not ranked as independent launches.</p></div><div class="model-badge">SOURCE<br><b>DEFILLAMA · 2026-11-14</b></div></div>
+    <section class="research-view" id="universe-view" aria-labelledby="universe-title" hidden>
+      <div class="section-head">
+        <div><span class="eyebrow">SNAPSHOT AUDIT</span><h2 id="universe-title">Every protocol has a place.</h2><p>Every snapshot row is retained with its classification reason. The official watchlist is authoritative; other versions, exchanges and excluded product categories are set aside from the pre-token ranking.</p></div>
+        <div class="model-badge">FROZEN SOURCE<br><b id="universe-source">Loading snapshot</b></div>
+      </div>
       <div class="audit-summary" id="audit-summary"></div>
-      <div class="table-wrap audit-table"><table><thead><tr><th>Protocol</th><th>Category</th><th>Chain</th><th>TVL</th><th>Status</th><th>Decision</th></tr></thead><tbody id="universe-rows"></tbody></table></div>
+      <div class="table-wrap audit-table">
+        <table>
+          <caption>Complete source universe. Select a row to inspect its classification.</caption>
+          <thead><tr><th scope="col">Protocol</th><th scope="col">Category</th><th scope="col">Chain</th><th scope="col">TVL</th><th scope="col">Status</th><th scope="col">Decision</th></tr></thead>
+          <tbody id="universe-rows"></tbody>
+        </table>
+      </div>
     </section>
   </main>
 
-  <footer><span>ORBIT · CONDITIONAL TOKEN VALUE RESEARCH</span><span>Frozen source snapshot · No RPC · No launch or reward guarantee</span></footer>
-  <script src="../data.js"></script>
-  <script src="engine.js"></script>
-  <script src="app.js"></script>
+  <button type="button" id="drawer-backdrop" tabindex="-1" aria-label="Close protocol details" hidden></button>
+  <footer><span>ORBIT · CONDITIONAL TOKEN VALUE RESEARCH</span><span>Frozen snapshot · Offline · No launch or reward guarantee</span></footer>
 </body>
 </html>

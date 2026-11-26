@@ -1,262 +1,431 @@
-/* Shared deterministic valuation, classification and farm-planning engine. */
-(function (root, factory) {
+/* Deterministic, offline analytics shared by the entrypoint and browser. */
+(function expose(root, factory) {
+  'use strict';
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.ORBIT = api;
-})(typeof globalThis === 'object' ? globalThis : this, function () {
+})(typeof globalThis === 'object' ? globalThis : this, function createEngine() {
   'use strict';
 
   const VERSION = 'orbit-1.1';
   const DEFAULTS = { deposit: 10000, days: 30, gas: 1, opportunity: 5, eligibility: 50, allocation: 10 };
-  const LIMITS = { deposit: [1, 1e6], days: [1, 365], gas: [0, 1000], opportunity: [0, 100], eligibility: [0, 100], allocation: [0, 100] };
-  const FAMILIES = ['Lending', 'Dexs', 'Risk Curators', 'Yield', 'RWA', 'Derivatives', 'Liquid Staking', 'CDP', 'Onchain Capital Allocator', 'Bridge', 'Canonical Bridge'];
+  const LIMITS = {
+    deposit: [1, 1e6], days: [1, 365], gas: [0, 1000],
+    opportunity: [0, 100], eligibility: [0, 100], allocation: [0, 100],
+  };
+  const FAMILIES = [
+    'Lending', 'Dexs', 'Risk Curators', 'Yield', 'RWA', 'Derivatives',
+    'Liquid Staking', 'CDP', 'Onchain Capital Allocator', 'Bridge', 'Canonical Bridge',
+  ];
   const EXCHANGE_PREFIX = /^(?:Binance|Coinbase|Bybit|Kraken|Bitget|OKX|Bitfinex|Gemini)\b/i;
   const VERSION_SUFFIX = /\s(?:V\d+(?:\.\d+)?|v\d+(?:\.\d+)?|\d+\.\d+)$/;
   const PRODUCT_WORD = /\b(?:wrapped|staked|staking)\b/i;
-  const HARMFUL = new Set(['CEX', 'Bridge', 'Canonical Bridge', 'Cross Chain Bridge', 'Liquid Staking', 'Liquid Restaking', 'Restaked BTC', 'Stablecoin Wrapper', 'Payments', 'Crypto Card Issuer', 'Launchpad']);
+  const HARMFUL = new Set([
+    'CEX', 'Bridge', 'Canonical Bridge', 'Cross Chain Bridge', 'Liquid Staking',
+    'Liquid Restaking', 'Restaked BTC', 'Stablecoin Wrapper', 'Payments',
+    'Crypto Card Issuer', 'Launchpad',
+  ]);
+  const SORT_KEYS = new Set([
+    'rank', 'name', 'slug', 'implied_value_usd', 'mcap_usd', 'tvl_usd',
+    'change_7d', 'age_days', 'net', 'value_per_tvl',
+  ]);
   const DAY = 86400000;
-  const round = (n, k) => Math.round(n * 10 ** k) / 10 ** k;
-  const finite = (n) => typeof n === 'number' && Number.isFinite(n);
-  const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
-  const median = (values) => {
-    if (!values.length) return 0;
-    const a = values.slice().sort((x, y) => x - y), m = a.length >> 1;
-    return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
-  };
-  const quantile = (values, q) => {
-    if (!values.length) return 0;
-    const a = values.slice().sort((x, y) => x - y), x = (a.length - 1) * q;
-    const lo = Math.floor(x), hi = Math.ceil(x);
-    return a[lo] + (a[hi] - a[lo]) * (x - lo);
-  };
-  const fmt = (n) => {
-    if (!finite(n)) return 'n/a';
-    const a = Math.abs(n);
-    if (a >= 1e12) return '$' + (n / 1e12).toFixed(1) + 'T';
-    if (a >= 1e9) return '$' + (n / 1e9).toFixed(a >= 1e10 ? 0 : 1) + 'B';
-    if (a >= 1e6) return '$' + (n / 1e6).toFixed(a >= 1e8 ? 0 : 1) + 'M';
-    if (a >= 1e3) return '$' + (n / 1e3).toFixed(a >= 1e5 ? 0 : 1) + 'K';
-    return '$' + Math.round(n).toLocaleString('en-US');
-  };
+  const finite = value => typeof value === 'number' && Number.isFinite(value);
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+  const round = (value, digits) => Math.round(value * 10 ** digits) / 10 ** digits;
+  const sum = values => values.reduce((total, value) => total + value, 0);
 
-  const validDate = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && Number.isFinite(Date.parse(s)) && new Date(s).toISOString().slice(0, 10) === s;
+  function median(values) {
+    if (!values.length) return 0;
+    const sorted = values.slice().sort((a, b) => a - b);
+    const middle = sorted.length >> 1;
+    return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+  }
+
+  function quantile(values, fraction) {
+    if (!values.length) return 0;
+    const sorted = values.slice().sort((a, b) => a - b);
+    const position = (sorted.length - 1) * fraction;
+    const low = Math.floor(position);
+    const high = Math.ceil(position);
+    return sorted[low] + (sorted[high] - sorted[low]) * (position - low);
+  }
+
+  function fmt(value) {
+    if (!finite(value)) return 'n/a';
+    const absolute = Math.abs(value);
+    if (absolute >= 1e12) return '$' + (value / 1e12).toFixed(1) + 'T';
+    if (absolute >= 1e9) return '$' + (value / 1e9).toFixed(absolute >= 1e10 ? 0 : 1) + 'B';
+    if (absolute >= 1e6) return '$' + (value / 1e6).toFixed(absolute >= 1e8 ? 0 : 1) + 'M';
+    if (absolute >= 1e3) return '$' + (value / 1e3).toFixed(absolute >= 1e5 ? 0 : 1) + 'K';
+    return '$' + Math.round(value).toLocaleString('en-US');
+  }
+
+  function validDate(value) {
+    return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+  }
+
   function ageDays(asOf, listedAt) {
     if (!validDate(asOf) || !validDate(listedAt)) return null;
-    const to = Date.parse(asOf + 'T00:00:00Z'), from = Date.parse(listedAt + 'T00:00:00Z');
-    if (!Number.isFinite(to) || !Number.isFinite(from)) return null;
-    return Math.max(0, Math.floor((to - from) / DAY));
+    return Math.max(0, Math.floor((Date.parse(asOf + 'T00:00:00Z') - Date.parse(listedAt + 'T00:00:00Z')) / DAY));
   }
-  function preToken(p) {
-    return !p.gecko_id && !p.symbol && !(finite(p.mcap_usd) && p.mcap_usd > 0);
+
+  function preToken(protocol) {
+    return !protocol.gecko_id && !protocol.symbol && !(finite(protocol.mcap_usd) && protocol.mcap_usd > 0);
   }
-  function excluded(p) {
-    return HARMFUL.has(p.category) || VERSION_SUFFIX.test(p.name) || PRODUCT_WORD.test(p.name) || EXCHANGE_PREFIX.test(p.name);
+
+  function excluded(protocol) {
+    return HARMFUL.has(protocol.category) || VERSION_SUFFIX.test(protocol.name) ||
+      PRODUCT_WORD.test(protocol.name) || EXCHANGE_PREFIX.test(protocol.name);
   }
-  function reason(p, watch) {
-    if (watch.has(p.slug)) return 'Watchlist floor';
-    if (!preToken(p)) return 'Token recorded';
-    if (HARMFUL.has(p.category)) return 'Product category excluded by policy';
-    if (VERSION_SUFFIX.test(p.name)) return 'Versioned product';
-    if (PRODUCT_WORD.test(p.name)) return 'Wrapped or staked product';
-    if (EXCHANGE_PREFIX.test(p.name)) return 'Exchange-branded product';
+
+  function classificationReason(protocol, watchlist) {
+    if (watchlist.has(protocol.slug)) return 'Watchlist floor';
+    if (!preToken(protocol)) return 'Token recorded';
+    if (HARMFUL.has(protocol.category)) return 'Product category excluded by policy';
+    if (VERSION_SUFFIX.test(protocol.name)) return 'Versioned product';
+    if (PRODUCT_WORD.test(protocol.name)) return 'Wrapped or staked product';
+    if (EXCHANGE_PREFIX.test(protocol.name)) return 'Exchange-branded product';
     return 'Below floor, eligible';
   }
-  function pooledSolve(X, y, weights, ridge) {
-    const n = X[0].length;
-    const A = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) =>
-      X.reduce((s, x, k) => s + weights[k] * x[i] * x[j], 0) + (i === j && i > 0 ? ridge : 0)));
-    const b = Array.from({ length: n }, (_, i) => X.reduce((s, x, k) => s + weights[k] * x[i] * y[k], 0));
-    for (let i = 0; i < n; i++) {
-      let pivot = i;
-      for (let j = i + 1; j < n; j++) if (Math.abs(A[j][i]) > Math.abs(A[pivot][i])) pivot = j;
-      if (Math.abs(A[pivot][i]) < 1e-12) continue;
-      [A[i], A[pivot]] = [A[pivot], A[i]]; [b[i], b[pivot]] = [b[pivot], b[i]];
-      const div = A[i][i];
-      for (let k = i; k < n; k++) A[i][k] /= div;
-      b[i] /= div;
-      for (let j = 0; j < n; j++) if (j !== i) {
-        const f = A[j][i];
-        for (let k = i; k < n; k++) A[j][k] -= f * A[i][k];
-        b[j] -= f * b[i];
+
+  function scenarioSettings(settings) {
+    const result = { ...DEFAULTS, ...settings };
+    for (const [key, [min, max]] of Object.entries(LIMITS)) {
+      if (!finite(result[key]) || result[key] < min || result[key] > max) {
+        throw new Error(`Invalid scenario setting: ${key}`);
       }
     }
-    return b;
+    return result;
   }
-  function fitRegression(rows) {
-    const valid = rows.filter((p) => finite(p.tvl_usd) && p.tvl_usd > 0 && finite(p.mcap_usd) && p.mcap_usd > 0);
-    if (valid.length < 8) throw new Error('Model requires at least eight positive TVL/market-cap comparables.');
-    const X = valid.map((p) => [1, Math.log(p.tvl_usd / 1e8)]);
-    const y = valid.map((p) => Math.log(p.mcap_usd));
-    let weights = Array(valid.length).fill(1), beta = [0, 0];
-    for (let iter = 0; iter < 40; iter++) {
-      beta = pooledSolve(X, y, weights, 0.01);
-      const residuals = y.map((v, i) => v - X[i].reduce((s, z, j) => s + z * beta[j], 0));
-      const center = median(residuals);
-      const scale = Math.max(0.2, 1.4826 * median(residuals.map((v) => Math.abs(v - center))));
-      const next = residuals.map((v) => Math.min(1, 1.345 * scale / Math.max(Math.abs(v), 1e-9)));
-      if (Math.max(...next.map((v, i) => Math.abs(v - weights[i]))) < 1e-6) { weights = next; break; }
-      weights = next;
+
+  // Weighted normal equations, with pivoting and an unpenalized intercept.
+  function pooledSolve(features, targets, weights, ridge) {
+    const count = features[0].length;
+    const matrix = Array.from({ length: count }, (_, i) => Array.from({ length: count }, (_, j) =>
+      features.reduce((total, row, k) => total + weights[k] * row[i] * row[j], 0) +
+      (i === j && i > 0 ? ridge : 0)));
+    const result = Array.from({ length: count }, (_, i) =>
+      features.reduce((total, row, k) => total + weights[k] * row[i] * targets[k], 0));
+    for (let i = 0; i < count; i++) {
+      let pivot = i;
+      for (let j = i + 1; j < count; j++) {
+        if (Math.abs(matrix[j][i]) > Math.abs(matrix[pivot][i])) pivot = j;
+      }
+      if (Math.abs(matrix[pivot][i]) < 1e-12) continue;
+      [matrix[i], matrix[pivot]] = [matrix[pivot], matrix[i]];
+      [result[i], result[pivot]] = [result[pivot], result[i]];
+      const divisor = matrix[i][i];
+      for (let k = i; k < count; k++) matrix[i][k] /= divisor;
+      result[i] /= divisor;
+      for (let j = 0; j < count; j++) {
+        if (j === i) continue;
+        const factor = matrix[j][i];
+        for (let k = i; k < count; k++) matrix[j][k] -= factor * matrix[i][k];
+        result[j] -= factor * result[i];
+      }
     }
-    const residuals = valid.map((p) => Math.log(p.mcap_usd) - beta[0] - beta[1] * Math.log(p.tvl_usd / 1e8));
-    return { n: valid.length, intercept: beta[0], elasticity: clamp(beta[1], 0.15, 1.25), residuals };
+    return result;
   }
-  function metrics(records, predict) {
-    const errors = records.filter((p) => finite(p.mcap_usd) && p.mcap_usd > 0 && p.tvl_usd > 0)
-      .map((p) => Math.log(Math.max(1, predict(p)) / p.mcap_usd));
-    if (!errors.length) return { n: 0, median_multiple: 0, mean_abs_log: 0, within_3x_pct: 0, rank_r: 0 };
-    const abs = errors.map(Math.abs);
-    const a = records.filter((p) => finite(p.mcap_usd) && p.mcap_usd > 0 && p.tvl_usd > 0);
-    const ranks = (xs) => {
-      const order = xs.map((v, i) => [v, i]).sort((x, y) => x[0] - y[0]), out = Array(xs.length);
-      for (let i = 0; i < order.length;) { let j = i + 1; while (j < order.length && order[j][0] === order[i][0]) j++; for (let k = i; k < j; k++) out[order[k][1]] = (i + j + 1) / 2; i = j; }
-      return out;
+
+  function fitRegression(rows) {
+    const valid = rows.filter(row => finite(row.tvl_usd) && row.tvl_usd > 0 && finite(row.mcap_usd) && row.mcap_usd > 0);
+    if (valid.length < 8) throw new Error('Model requires at least eight positive TVL/market-cap comparables.');
+    const features = valid.map(row => [1, Math.log(row.tvl_usd / 1e8)]);
+    const targets = valid.map(row => Math.log(row.mcap_usd));
+    let weights = Array(valid.length).fill(1);
+    let coefficients = [0, 0];
+    for (let iteration = 0; iteration < 40; iteration++) {
+      coefficients = pooledSolve(features, targets, weights, 0.01);
+      const errors = targets.map((value, i) => value - features[i].reduce((total, feature, j) => total + feature * coefficients[j], 0));
+      const center = median(errors);
+      const scale = Math.max(0.2, 1.4826 * median(errors.map(value => Math.abs(value - center))));
+      const next = errors.map(value => Math.min(1, 1.345 * scale / Math.max(Math.abs(value), 1e-9)));
+      const converged = Math.max(...next.map((value, i) => Math.abs(value - weights[i]))) < 1e-6;
+      weights = next;
+      if (converged) break;
+    }
+    return {
+      n: valid.length,
+      intercept: coefficients[0],
+      elasticity: clamp(coefficients[1], 0.15, 1.25),
+      residuals: valid.map(row => Math.log(row.mcap_usd) - coefficients[0] - coefficients[1] * Math.log(row.tvl_usd / 1e8)),
     };
-    const rx = ranks(a.map((p) => Math.log(Math.max(1, predict(p))))), ry = ranks(a.map((p) => Math.log(p.mcap_usd)));
-    const mx = rx.reduce((s, v) => s + v, 0) / rx.length, my = ry.reduce((s, v) => s + v, 0) / ry.length;
-    const den = Math.sqrt(rx.reduce((s, v) => s + (v - mx) ** 2, 0) * ry.reduce((s, v) => s + (v - my) ** 2, 0));
-    const corr = den ? rx.reduce((s, v, i) => s + (v - mx) * (ry[i] - my), 0) / den : 0;
-    return { n: errors.length, median_multiple: round(Math.exp(median(abs)), 2), mean_abs_log: round(abs.reduce((s, v) => s + v, 0) / abs.length, 3), within_3x_pct: Math.round(100 * abs.filter((v) => v <= Math.log(3)).length / abs.length), rank_r: round(corr, 2) };
   }
-  function adjustments(p, asOf) {
-    const age = ageDays(asOf, p.listed_at);
-    return { growth: 1 + 0.15 * clamp(finite(p.change_7d) ? p.change_7d : 0, -50, 100) / 100,
-      seasoning: 0.85 + 0.15 * Math.min(age ?? 365, 730) / 730 };
+
+  function averageRanks(values) {
+    const ordered = values.map((value, index) => [value, index]).sort((a, b) => a[0] - b[0]);
+    const ranks = Array(values.length);
+    for (let i = 0; i < ordered.length;) {
+      let end = i + 1;
+      while (end < ordered.length && ordered[end][0] === ordered[i][0]) end++;
+      for (let k = i; k < end; k++) ranks[ordered[k][1]] = (i + end + 1) / 2;
+      i = end;
+    }
+    return ranks;
   }
-  function valuation(model, p, asOf) {
-    const a = adjustments(p, asOf);
-    return clamp(Math.round(predict(model, p.tvl_usd) * a.growth * a.seasoning), 1, 1e14);
+
+  function metrics(records, predictor) {
+    const valid = records.filter(row => finite(row.mcap_usd) && row.mcap_usd > 0 && row.tvl_usd > 0);
+    const errors = valid.map(row => Math.log(Math.max(1, predictor(row)) / row.mcap_usd));
+    if (!errors.length) return { n: 0, median_multiple: 0, mean_abs_log: 0, within_3x_pct: 0, rank_r: 0 };
+    const absolute = errors.map(Math.abs);
+    const predictedRanks = averageRanks(valid.map(row => Math.log(Math.max(1, predictor(row)))));
+    const observedRanks = averageRanks(valid.map(row => Math.log(row.mcap_usd)));
+    const meanPredicted = sum(predictedRanks) / predictedRanks.length;
+    const meanObserved = sum(observedRanks) / observedRanks.length;
+    const denominator = Math.sqrt(
+      sum(predictedRanks.map(value => (value - meanPredicted) ** 2)) *
+      sum(observedRanks.map(value => (value - meanObserved) ** 2)));
+    const correlation = denominator ? predictedRanks.reduce((total, value, i) =>
+      total + (value - meanPredicted) * (observedRanks[i] - meanObserved), 0) / denominator : 0;
+    return {
+      n: errors.length,
+      median_multiple: round(Math.exp(median(absolute)), 2),
+      mean_abs_log: round(sum(absolute) / absolute.length, 3),
+      within_3x_pct: Math.round(100 * absolute.filter(value => value <= Math.log(3)).length / absolute.length),
+      rank_r: round(correlation, 2),
+    };
   }
+
+  function adjustments(protocol, asOf) {
+    const age = ageDays(asOf, protocol.listed_at);
+    return {
+      growth: 1 + 0.15 * clamp(finite(protocol.change_7d) ? protocol.change_7d : 0, -50, 100) / 100,
+      seasoning: 0.85 + 0.15 * Math.min(age ?? 365, 730) / 730,
+    };
+  }
+
+  function predict(model, tvl) {
+    return clamp(Math.round(Math.exp(model.intercept + model.elasticity * Math.log(Math.max(1, tvl) / 1e8))), 1, 1e14);
+  }
+
+  function valuation(model, protocol, asOf) {
+    const factors = adjustments(protocol, asOf);
+    return clamp(Math.round(predict(model, protocol.tvl_usd) * factors.growth * factors.seasoning), 1, 1e14);
+  }
+
   function outOfFold(records, asOf) {
-    const folds = 5;
-    const held = Array.from({ length: folds }, () => []);
-    for (const p of records) {
-      const id = String(p.gecko_id || p.symbol || p.slug);
-      let h = 2166136261;
-      for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
-      held[(h >>> 0) % folds].push(p);
+    const folds = Array.from({ length: 5 }, () => []);
+    for (const row of records) {
+      const identity = String(row.gecko_id || row.symbol || row.slug);
+      let hash = 2166136261;
+      for (let i = 0; i < identity.length; i++) hash = Math.imul(hash ^ identity.charCodeAt(i), 16777619);
+      folds[(hash >>> 0) % folds.length].push(row);
     }
     const predictions = [];
-    for (let i = 0; i < folds; i++) {
-      const train = records.filter((p) => !held[i].includes(p));
-      if (held[i].length && train.length >= 8) {
-        const fit = fitRegression(train);
-        for (const p of held[i]) predictions.push({ p, value: valuation(fit, p, asOf) });
-      }
+    for (let i = 0; i < folds.length; i++) {
+      const training = records.filter(row => !folds[i].includes(row));
+      if (!folds[i].length || training.length < 8) continue;
+      const model = fitRegression(training);
+      for (const row of folds[i]) predictions.push({ p: row, value: valuation(model, row, asOf) });
     }
     return predictions;
   }
+
   function comparableModel(protocols, asOf) {
     const identities = new Map();
-    for (const p of protocols.filter((p) => finite(p.mcap_usd) && p.mcap_usd > 0 && finite(p.tvl_usd) && p.tvl_usd > 0 && p.category !== 'CEX')) {
-      const id = String(p.gecko_id || p.symbol || p.slug).toLowerCase();
-      if (!identities.has(id) || identities.get(id).tvl_usd < p.tvl_usd) identities.set(id, p);
+    for (const row of protocols) {
+      if (!finite(row.mcap_usd) || row.mcap_usd <= 0 || !finite(row.tvl_usd) || row.tvl_usd <= 0 || row.category === 'CEX') continue;
+      const identity = String(row.gecko_id || row.symbol || row.slug).toLowerCase();
+      if (!identities.has(identity) || identities.get(identity).tvl_usd < row.tvl_usd) identities.set(identity, row);
     }
-    const trained = [...identities.values()];
-    const fit = fitRegression(trained);
-    const folds = outOfFold(trained, asOf);
-    const cv = metrics(folds.map((x) => ({ ...x.p, _actual: x.p.mcap_usd, _pred: x.value })), (p) => p._pred);
-    const residuals = folds.map((x) => Math.log(x.p.mcap_usd / x.value));
-    const q10 = quantile(residuals, 0.10), q90 = quantile(residuals, 0.90);
-    const dateCut = '2026-01-01';
-    const cohort = trained.filter((p) => typeof p.listed_at === 'string' && p.listed_at >= dateCut);
-    const prior = trained.filter((p) => !cohort.includes(p));
+    const training = [...identities.values()];
+    const fit = fitRegression(training);
+    const folds = outOfFold(training, asOf);
+    const cv = metrics(folds.map(item => ({ ...item.p, _pred: item.value })), row => row._pred);
+    const residuals = folds.map(item => Math.log(item.p.mcap_usd / item.value));
+    const since = '2026-01-01';
+    const cohort = training.filter(row => typeof row.listed_at === 'string' && row.listed_at >= since);
+    const prior = training.filter(row => !cohort.includes(row));
     const dateFit = prior.length >= 8 ? fitRegression(prior) : fit;
-    const datePred = (p) => valuation(dateFit, p, asOf);
-    const starter = (p) => p.tvl_usd * 0.25 * (1 + clamp(p.change_7d || 0, -60, 120) / 200) * (0.6 + Math.min(ageDays(asOf, p.listed_at) ?? 365, 1095) / 1095 * 0.4);
+    const starter = row => row.tvl_usd * 0.25 * (1 + clamp(row.change_7d || 0, -60, 120) / 200) *
+      (0.6 + Math.min(ageDays(asOf, row.listed_at) ?? 365, 1095) / 1095 * 0.4);
     return {
       n: fit.n, intercept: fit.intercept, elasticity: fit.elasticity,
-      log_base: Math.exp(fit.intercept), q10, q90,
-      cv, starter_cv: metrics(folds.map((x) => ({ ...x.p, _pred: starter(x.p) })), (p) => p._pred),
-      recent: { since: dateCut, n: cohort.length, metrics: metrics(cohort.map((p) => ({ ...p, _pred: datePred(p) })), (p) => p._pred) },
+      log_base: Math.exp(fit.intercept), q10: quantile(residuals, 0.10), q90: quantile(residuals, 0.90),
+      cv,
+      starter_cv: metrics(folds.map(item => ({ ...item.p, _pred: starter(item.p) })), row => row._pred),
+      recent: { since, n: cohort.length, metrics: metrics(cohort.map(row => ({ ...row, _pred: valuation(dateFit, row, asOf) })), row => row._pred) },
       residuals,
       formula: `exp(${round(fit.intercept, 4)} + ${round(fit.elasticity, 4)} × ln(TVL / $100M)) × growth × seasoning`,
     };
   }
-  function predict(model, tvl) {
-    return clamp(Math.round(Math.exp(model.intercept + model.elasticity * Math.log(Math.max(1, tvl) / 1e8))), 1, 1e14);
-  }
+
   function familyFor(category) {
-    const c = String(category || 'Other');
-    return FAMILIES.includes(c) ? c : 'Other';
+    return FAMILIES.includes(String(category || 'Other')) ? String(category) : 'Other';
   }
-  function plan(p, implied, band, age, settings) {
-    settings = { ...DEFAULTS, ...settings };
-    for (const [k, [min, max]] of Object.entries(LIMITS)) if (!finite(settings[k]) || settings[k] < min || settings[k] > max) throw new Error(`Invalid scenario setting: ${k}`);
-    const tvl = Math.max(0, p.tvl_usd), deposit = settings.deposit, days = settings.days;
-    const gas = settings.gas, apr = settings.opportunity / 100;
-    const family = familyFor(p.category);
-    const eligibility = settings.eligibility / 100, allocation = settings.allocation / 100;
-    const safeTvl = Math.max(tvl, 1);
-    const gross = implied * allocation * Math.min(1, deposit / safeTvl) * eligibility;
-    const low = band[0] * allocation * Math.min(1, deposit / safeTvl) * eligibility;
+
+  function interactionFor(family, chain) {
+    if (family === 'Lending' || family === 'CDP') return `Test a tiny reversible supply or collateral position on ${chain}`;
+    if (family === 'Dexs' || family === 'Yield') return `Check pool depth, then test a balanced LP position on ${chain}`;
+    if (family === 'Risk Curators' || family === 'Onchain Capital Allocator') return `Inspect vault assets and curator controls before a small vault deposit on ${chain}`;
+    if (family === 'RWA') return `Check jurisdiction and redemption eligibility before considering the ${chain} product`;
+    if (family === 'Derivatives') return `Avoid leverage; only test a minimal hedged position if it is eligible on ${chain}`;
+    if (family === 'Liquid Staking') return `Verify contract and redemption terms before a small staking test on ${chain}`;
+    if (family.includes('Bridge')) return `Verify the official bridge route and withdrawal path before a minimal transfer to ${chain}`;
+    return `Verify the live product and access requirements before a minimal, reversible test on ${chain}`;
+  }
+
+  function plan(protocol, implied, band, age, settings) {
+    const scenario = scenarioSettings(settings);
+    const { deposit, days, gas } = scenario;
+    const tvl = Math.max(0, protocol.tvl_usd);
+    const family = familyFor(protocol.category);
+    const allocation = scenario.allocation / 100;
+    const eligibility = scenario.eligibility / 100;
+    const share = Math.min(1, deposit / Math.max(tvl, 1));
+    const gross = implied * allocation * share * eligibility;
+    const low = band[0] * allocation * share * eligibility;
     const slippage = deposit * 0.001;
-    const cost = gas * 4 + slippage + deposit * apr * days / 365;
-    const net = gross - cost, netLow = low - cost;
-    const threshold = implied * allocation * Math.min(1, deposit / safeTvl);
+    const cost = gas * 4 + slippage + deposit * (scenario.opportunity / 100) * days / 365;
+    const net = gross - cost;
+    const netLow = low - cost;
+    const threshold = implied * allocation * share;
     const breakeven = threshold > 0 ? (cost / threshold) * 100 : null;
     let verdict = 'Observe';
-    if (tvl <= 0 || (p.change_7d ?? 0) <= -15 || net < 0) verdict = 'Skip';
+    if (tvl <= 0 || (protocol.change_7d ?? 0) <= -15 || net < 0) verdict = 'Skip';
     else if (netLow >= 0 && breakeven <= 33 && age !== null && age >= 90) verdict = 'Pilot';
-    const chain = Array.isArray(p.chains) && p.chains.length ? p.chains[0] : 'the listed chain';
-    const verb = family === 'Lending' || family === 'CDP' ? `Test a tiny reversible supply or collateral position on ${chain}`
-      : family === 'Dexs' || family === 'Yield' ? `Check pool depth, then test a balanced LP position on ${chain}`
-      : family === 'Risk Curators' || family === 'Onchain Capital Allocator' ? `Inspect vault assets and curator controls before a small vault deposit on ${chain}`
-      : family === 'RWA' ? `Check jurisdiction and redemption eligibility before considering the ${chain} product`
-      : family === 'Derivatives' ? `Avoid leverage; only test a minimal hedged position if it is eligible on ${chain}`
-      : family === 'Liquid Staking' ? `Verify contract and redemption terms before a small staking test on ${chain}`
-      : family.includes('Bridge') ? `Verify the official bridge route and withdrawal path before a minimal transfer to ${chain}`
-      : `Verify the live product and access requirements before a minimal, reversible test on ${chain}`;
+    const chain = Array.isArray(protocol.chains) && protocol.chains.length ? protocol.chains[0] : 'the listed chain';
+    const interaction = interactionFor(family, chain);
     return {
-      gross, low, cost, net, netLow, breakeven, verdict, family, slippage, hours: 0.75 + Math.ceil(days / 7) / 12,
+      gross, low, cost, net, netLow, breakeven, verdict, family, slippage,
+      hours: 0.75 + Math.ceil(days / 7) / 12,
       steps: [
-        `Verify ${p.name}'s official app independently; confirm the chain, contract and current product before connecting. Cost: $0. Time: 10 minutes.`,
+        `Verify ${protocol.name}'s official app independently; confirm the chain, contract and current product before connecting. Cost: $0. Time: 10 minutes.`,
         `Check wallet, geography and product eligibility; token status in this DefiLlama snapshot is not a reward promise. Cost: $0. Time: 5 minutes.`,
-        ` ${verb}. Estimate about $${gas} per transaction; begin below the $${deposit.toLocaleString('en-US')} scenario deposit. Time: 15 minutes.`,
+        ` ${interaction}. Estimate about $${gas} per transaction; begin below the $${deposit.toLocaleString('en-US')} scenario deposit. Time: 15 minutes.`,
         `Record deposit, TVL and one useful interaction; avoid repeat volume, wash trading, leverage and transactions done only for an unverified allocation. Cost: gas shown above. Time: ${days} days maximum.`,
         `Recheck TVL, withdrawals, permission changes and official announcements weekly; the value band is a traded-token cross-section, not launch odds. Cost: $0. Time: 5 minutes weekly.`,
         `Withdraw or revoke approvals when expected net economics turn negative; never pay a claim fee, and verify any distribution through official channels. Cost: about $${gas} gas. Time: 10 minutes.`,
       ],
-      assumptions: `Scenario only: $${deposit} for ${days}d, ${settings.eligibility}% assumed eligibility, ${settings.allocation}% hypothetical TVL-pro-rata allocation; four gas transactions, 0.1% execution allowance and capital cost deducted. Principal loss and labor are not included. No allocation or launch probability is observed.`,
+      assumptions: `Scenario only: $${deposit} for ${days}d, ${scenario.eligibility}% assumed eligibility, ${scenario.allocation}% hypothetical TVL-pro-rata allocation; four gas transactions, 0.1% execution allowance and capital cost deducted. Principal loss and labor are not included. No allocation or launch probability is observed.`,
     };
   }
-  function derive(snapshot, settings) {
+
+  // Signals describe snapshot evidence, never a probability of launching or safety.
+  function launchSignals(protocol = {}, asOf) {
+    const change = finite(protocol.change_7d) ? protocol.change_7d : null;
+    const trackingDays = ageDays(asOf, protocol.listed_at);
+    const flags = [];
+    if (!finite(protocol.tvl_usd) || protocol.tvl_usd <= 0) flags.push('No positive TVL recorded');
+    if (change === null) flags.push('Seven-day change unavailable');
+    else if (change <= -15) flags.push('Seven-day TVL drawdown of at least 15%');
+    if (trackingDays === null) flags.push('Tracking date unavailable');
+    else if (trackingDays < 90) flags.push('Less than 90 days of tracking');
+    if (excluded(protocol)) flags.push('Product or category exclusion');
+    const elevated = !finite(protocol.tvl_usd) || protocol.tvl_usd <= 0 || (change !== null && change <= -15) || excluded(protocol);
+    const momentum = change === null ? 'Unknown' : change >= 5 ? 'Growing' : change <= -5 ? 'Fading' : 'Steady';
+    return {
+      momentum: { label: momentum, tone: momentum === 'Growing' ? 'positive' : momentum === 'Fading' ? 'negative' : 'neutral', change_7d: change },
+      risk: { label: elevated ? 'Elevated' : flags.length ? 'Caution' : 'Unassessed', tone: elevated ? 'negative' : flags.length ? 'warning' : 'neutral', flags },
+      tracking_days: trackingDays,
+      token_status: preToken(protocol) ? 'Token not recorded' : 'Token recorded',
+      launch_probability: null,
+      note: 'TVL momentum and tracking context only; launch intent, contract safety and rewards are unobserved.',
+    };
+  }
+
+  function filterRows(rows, filters = {}) {
+    const search = String(filters.search ?? '').trim().toLowerCase();
+    return rows.filter(row => {
+      const category = row.category || 'Uncategorized';
+      const chains = Array.isArray(row.chains) ? row.chains : [];
+      const status = row.status || (finite(row.implied_value_usd) ? 'Ranked' : preToken(row) ? 'Set aside' : 'Traded');
+      if (filters.status && status !== filters.status) return false;
+      if (search && ![row.name, row.slug, category, ...chains].join(' ').toLowerCase().includes(search)) return false;
+      if (filters.category && filters.category !== category) return false;
+      if (filters.chain && !chains.includes(filters.chain)) return false;
+      if (filters.quick === 'watch' && !row.watchlist) return false;
+      if (filters.quick === 'worth' && !(row.farm && row.farm.net > 0)) return false;
+      if (filters.quick === 'pilot' && row.farm?.verdict !== 'Pilot') return false;
+      if (filters.risk || filters.momentum) {
+        const signals = launchSignals(row, filters.asOf);
+        if (filters.risk && filters.risk !== signals.risk.label) return false;
+        if (filters.momentum && filters.momentum !== signals.momentum.label) return false;
+      }
+      return true;
+    });
+  }
+
+  function sortRows(rows, options = {}) {
+    let key = SORT_KEYS.has(options.key) ? options.key : 'rank';
+    if (key === 'implied_value_usd' && options.status === 'Traded') key = 'mcap_usd';
+    const direction = options.direction === -1 ? -1 : 1;
+    const valueFor = row => {
+      if (key === 'name' || key === 'slug') return String(row[key] ?? '');
+      const value = key === 'net' ? row.farm?.net : row[key];
+      return finite(value) ? value : 0;
+    };
+    return rows.slice().sort((a, b) => {
+      const left = valueFor(a);
+      const right = valueFor(b);
+      const difference = typeof left === 'string' ? left.localeCompare(right, 'en') : left - right;
+      return direction * difference || String(a.slug ?? '').localeCompare(String(b.slug ?? ''), 'en');
+    });
+  }
+
+  function validateSnapshot(snapshot) {
     if (!snapshot || !Array.isArray(snapshot.protocols) || !Array.isArray(snapshot.watchlist)) throw new Error('Snapshot requires protocols[] and watchlist[].');
     if (!validDate(snapshot.as_of)) throw new Error('Snapshot requires a valid as_of date.');
-    if (snapshot.watchlist.some((s) => typeof s !== 'string' || !s || /\s/.test(s)) || new Set(snapshot.watchlist).size !== snapshot.watchlist.length) throw new Error('Malformed or duplicate watchlist slug.');
-    settings = { ...DEFAULTS, ...settings };
-    for (const p of snapshot.protocols) if (!p || typeof p !== 'object') throw new Error('Malformed protocol row.');
-    const watch = new Set(snapshot.watchlist), bySlug = new Map(snapshot.protocols.map((p) => [p.slug, p]));
-    for (const slug of watch) if (!bySlug.has(slug)) throw new Error(`Watchlist protocol missing from snapshot: ${slug}`);
+    if (snapshot.watchlist.some(slug => typeof slug !== 'string' || !slug || /\s/.test(slug)) || new Set(snapshot.watchlist).size !== snapshot.watchlist.length) throw new Error('Malformed or duplicate watchlist slug.');
     const unique = new Set();
-    for (const p of snapshot.protocols) {
-      if (!p || typeof p.slug !== 'string' || !p.slug || /\s/.test(p.slug) || p.slug.length > 128 || unique.has(p.slug)) throw new Error('Snapshot has a missing or duplicate protocol slug.');
-      unique.add(p.slug);
-      if (typeof p.name !== 'string' || !p.name.trim() || !finite(p.tvl_usd) || p.tvl_usd < 0) throw new Error(`Malformed protocol row: ${p.slug}`);
-      if (!Array.isArray(p.chains) || p.chains.some((c) => typeof c !== 'string' || !c.trim()) ||
-          ['category', 'gecko_id', 'symbol'].some((k) => p[k] != null && typeof p[k] !== 'string') ||
-          ['change_7d', 'mcap_usd'].some((k) => p[k] != null && !finite(p[k])) ||
-          (p.listed_at != null && !validDate(p.listed_at))) throw new Error(`Malformed protocol context: ${p.slug}`);
+    for (const row of snapshot.protocols) {
+      if (!row || typeof row !== 'object') throw new Error('Malformed protocol row.');
+      if (typeof row.slug !== 'string' || !row.slug || /\s/.test(row.slug) || row.slug.length > 128 || unique.has(row.slug)) throw new Error('Snapshot has a missing or duplicate protocol slug.');
+      unique.add(row.slug);
+      if (typeof row.name !== 'string' || !row.name.trim() || !finite(row.tvl_usd) || row.tvl_usd < 0) throw new Error(`Malformed protocol row: ${row.slug}`);
+      if (!Array.isArray(row.chains) || row.chains.some(chain => typeof chain !== 'string' || !chain.trim()) ||
+          ['category', 'gecko_id', 'symbol'].some(key => row[key] != null && typeof row[key] !== 'string') ||
+          ['change_7d', 'mcap_usd'].some(key => row[key] != null && !finite(row[key])) ||
+          (row.listed_at != null && !validDate(row.listed_at))) throw new Error(`Malformed protocol context: ${row.slug}`);
     }
-    const allRankable = snapshot.protocols.filter((p) => preToken(p) && (watch.has(p.slug) || !excluded(p)));
-    const comps = comparableModel(snapshot.protocols, snapshot.as_of);
-    const scored = allRankable.map((p) => {
-      const value = valuation(comps, p, snapshot.as_of);
-      const band = [clamp(Math.round(value * Math.exp(comps.q10)), 1, 1e14), clamp(Math.round(value * Math.exp(comps.q90)), 1, 1e14)];
-      const age = ageDays(snapshot.as_of, p.listed_at);
-      const farm = plan(p, value, band, age, settings);
+    for (const slug of snapshot.watchlist) {
+      if (!unique.has(slug)) throw new Error(`Watchlist protocol missing from snapshot: ${slug}`);
+    }
+  }
+
+  function derive(snapshot, settings) {
+    validateSnapshot(snapshot);
+    const scenario = scenarioSettings(settings);
+    const watchlist = new Set(snapshot.watchlist);
+    const model = comparableModel(snapshot.protocols, snapshot.as_of);
+    const candidates = snapshot.protocols.filter(row => preToken(row) && (watchlist.has(row.slug) || !excluded(row)));
+    const rows = candidates.map(protocol => {
+      const value = valuation(model, protocol, snapshot.as_of);
+      const band = [model.q10, model.q90].map(quantileValue => clamp(Math.round(value * Math.exp(quantileValue)), 1, 1e14));
+      const age = ageDays(snapshot.as_of, protocol.listed_at);
       return {
-        ...p, age_days: age, implied_value_usd: value, band_low_usd: band[0], band_high_usd: band[1],
-        value_per_tvl: p.tvl_usd > 0 ? value / p.tvl_usd : 0,
-        watchlist: watch.has(p.slug), model: VERSION, factors: adjustments(p, snapshot.as_of), classification_reason: reason(p, watch), farm,
+        ...protocol, age_days: age, implied_value_usd: value, band_low_usd: band[0], band_high_usd: band[1],
+        value_per_tvl: protocol.tvl_usd > 0 ? value / protocol.tvl_usd : 0,
+        watchlist: watchlist.has(protocol.slug), model: VERSION, factors: adjustments(protocol, snapshot.as_of),
+        classification_reason: classificationReason(protocol, watchlist), farm: plan(protocol, value, band, age, scenario),
       };
     }).sort((a, b) => b.implied_value_usd - a.implied_value_usd || a.slug.localeCompare(b.slug, 'en'));
-    scored.forEach((p, i) => { p.rank = i + 1; });
-    const ranked = new Set(scored.map((p) => p.slug));
-    if (snapshot.watchlist.some((slug) => !ranked.has(slug))) throw new Error('Internal classification failed full watchlist coverage.');
-    const traded = snapshot.protocols.filter((p) => !preToken(p));
-    const rankedTrade = traded.filter((p) => finite(p.mcap_usd) && p.mcap_usd > 0).map((p) => ({ ...p, predicted_mcap_usd: predict(comps, p.tvl_usd) })).sort((a,b)=>b.mcap_usd-a.mcap_usd);
-    const universe = snapshot.protocols.map((p) => ({ ...p, status: !preToken(p) ? 'Traded' : (ranked.has(p.slug) ? 'Ranked' : 'Set aside'), reason: reason(p, watch), rank: scored.find((q) => q.slug === p.slug)?.rank ?? null }));
-    return { version: VERSION, as_of: snapshot.as_of, source: snapshot.source, floor_usd: snapshot.floor_usd, settings, model: comps, rows: scored, traded: rankedTrade, universe, watchlist_size: watch.size, trained_size: comps.n, traded_size: traded.length, excluded_size: snapshot.protocols.length - scored.length - traded.length };
+    rows.forEach((row, index) => { row.rank = index + 1; });
+    const rankBySlug = new Map(rows.map(row => [row.slug, row.rank]));
+    if (snapshot.watchlist.some(slug => !rankBySlug.has(slug))) throw new Error('Internal classification failed full watchlist coverage.');
+    const tokenRecorded = snapshot.protocols.filter(row => !preToken(row));
+    const traded = tokenRecorded.filter(row => finite(row.mcap_usd) && row.mcap_usd > 0)
+      .map(row => ({ ...row, predicted_mcap_usd: predict(model, row.tvl_usd) }))
+      .sort((a, b) => b.mcap_usd - a.mcap_usd);
+    const universe = snapshot.protocols.map(row => ({
+      ...row,
+      status: !preToken(row) ? 'Traded' : rankBySlug.has(row.slug) ? 'Ranked' : 'Set aside',
+      reason: classificationReason(row, watchlist), rank: rankBySlug.get(row.slug) ?? null,
+    }));
+    return {
+      version: VERSION, as_of: snapshot.as_of, source: snapshot.source, floor_usd: snapshot.floor_usd,
+      settings: scenario, model, rows, traded, universe, watchlist_size: watchlist.size,
+      trained_size: model.n, traded_size: tokenRecorded.length,
+      excluded_size: snapshot.protocols.length - rows.length - tokenRecorded.length,
+    };
   }
-  return { VERSION, DEFAULTS, LIMITS, FAMILIES, fmt, median, quantile, ageDays, preToken, excluded, fitRegression, metrics, comparableModel, adjustments, valuation, predict, plan, derive };
+
+  return {
+    VERSION, DEFAULTS, LIMITS, FAMILIES, fmt, median, quantile, ageDays, preToken, excluded,
+    fitRegression, metrics, comparableModel, adjustments, valuation, predict, plan, derive,
+    launchSignals, filterRows, sortRows,
+  };
 });
