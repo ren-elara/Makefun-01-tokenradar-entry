@@ -1,5 +1,50 @@
 # ORBIT validation record
 
+## ORBIT 1.1 upgrade — 2026-11-26
+
+The upgrade adds sortable scenario net, correct traded-cap sorting and CSV
+exports, spreadsheet formula escaping, Uncategorized filtering, correct focus
+layout across views, shared scenario limits and defaults, explicit zero-allocation
+handling, strict optional-field/date/watchlist validation, and average ranks for
+Spearman ties. The sealed input's negative market-cap sentinels remain accepted;
+only positive caps qualify as model anchors. The ranking and valuation formula
+remain the same as the original release.
+
+- `node --test tests/*.test.cjs`: **8 passed, 0 failed**, including the badge
+  contract, malformed context, zero allocation, scenario limits and rank ties.
+- `node tools/verify-readme.mjs --live`: all three exact live badge URLs for
+  `token-radar-01` and `ren-elara/Makefun-01-tokenradar-entry` returned **HTTP 200**
+  and SVG content. Each badge links to the canonical bounty URL at the top of
+  the root README. The normal unit tests make no network requests.
+- Actual headless Chromium browser checks pass: numeric cap/net sorting,
+  traded-to-watchlist rank restoration, market-cap CSV contents, escaped formula
+  text, zero allocation, rejected blank inputs, Uncategorized selection, expanded
+  detail/view transitions, search, scenario updates and mobile fit. **Zero page
+  errors and zero HTTP(S) requests**. All three screenshots were recaptured from
+  the page at **1440×1000**, each under **197 KB**.
+- Two independent entrypoint runs passed all **seven output contract checks**:
+  **195 ranked protocols, 40/40 watchlist coverage, 416 token-recorded protocols**.
+  All **11 output files match byte for byte**. Dashboard source is **63,947 bytes**;
+  the verifier checks that every source file appears in full in the official
+  dossier, without a truncation marker.
+- The unchanged official helper retains SHA-256
+  `9ca51b6e5cd84fe46cb0efa61e2ea99365a1fb0e21f2b75e6007f977f0dc326e`.
+- Gitleaks with `--redact` reported **zero findings** in Git history, the staged
+  changes and the exact exported release tree. A separate raw-directory scan found 17
+  matches, all inside the ignored downloaded `token-radar-01-kit/cli/makefun.mjs`;
+  that third-party CLI is not included in the release or commit.
+
+Local verification used Alpine ARM64 Node **22.23.5**, whose build reports
+`process.features.typescript === false` and rejects native type stripping.
+Entrypoint and dossier verification therefore used a temporary **tsx** loader
+outside the repository. Unit tests run directly with Node. These are local
+checks, not a new Docker isolation result or an official judge score.
+The system Chromium needed software/headless flags in this PRoot environment;
+the capture tool now accepts an executable path and JSON array of extra flags.
+No transcript bundle was created and `makefun.mjs bundle` was not run.
+
+## Original release — 2026-11-17
+
 Measured 2026-11-17 against the sealed 2026-11-14 snapshot. These results are
 local engineering and conditional-valuation diagnostics. The official
 competition scorer and pairwise AI judge run only on make.fun's server.

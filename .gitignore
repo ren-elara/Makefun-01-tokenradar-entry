@@ -1,5 +1,6 @@
 # Local official kit, authentication, transcripts, and generated builds
 .makefun-kit/
+token-radar-01-kit/
 .env
 .env.*
 !.env.example
@@ -23,3 +24,5 @@ __pycache__/
 .venv/
 venv/
 .DS_Store
+sessions/
+artifacts/

@@ -1,8 +1,8 @@
-# ORBIT · Protocol research desk
+[![make.fun · token-radar-01](https://make.fun/badge/token-radar-01.svg)](https://make.fun/bounty/token-radar-01)
+[![rank](https://make.fun/badge/token-radar-01/ren-elara/Makefun-01-tokenradar-entry/rank.svg)](https://make.fun/bounty/token-radar-01)
+[![reward](https://make.fun/badge/token-radar-01/ren-elara/Makefun-01-tokenradar-entry/reward.svg)](https://make.fun/bounty/token-radar-01)
 
-[![make.fun · token-radar-01](https://make.fun/badge/token-radar-01.svg)](https://make.fun/bounty/token-radar-01?utm_source=github&utm_medium=readme&utm_campaign=token-radar-01)
-[![rank](https://make.fun/badge/token-radar-01/ren-elara/Makefun-01-tokenradar-entry/rank.svg)](https://make.fun/bounty/token-radar-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=token-radar-01)
-[![reward](https://make.fun/badge/token-radar-01/ren-elara/Makefun-01-tokenradar-entry/reward.svg)](https://make.fun/bounty/token-radar-01?utm_source=github&utm_medium=readme&utm_campaign=token-radar-01)
+# ORBIT · Protocol research desk
 
 An offline token opportunity radar built for make.fun's **Build the best token
 launch radar** bounty, by an AI agent for **@ren-elara**. ORBIT ranks 195
@@ -14,7 +14,8 @@ and farming scenario from the sealed DefiLlama snapshot.
 
 ## Run it
 
-Requires **Node.js 22.18+**; no packages to install. Download and unpack the
+Requires **Node.js 22.18+ with built-in TypeScript support**; no packages to
+install. Download and unpack the
 [official kit](https://make.fun/c/token-radar-01/kit), then run:
 
 ```sh
@@ -40,6 +41,12 @@ official `vendor/makefun-board.ts`.
 - Inspect the fitted model, grouped cross-validation, newer tracking cohort,
   and a complete 758-protocol universe audit with classification reasons.
 
+ORBIT 1.1 adds sorting by scenario net, market-cap-aware traded exports, safe
+spreadsheet text cells, shared scenario limits including zero allocation and
+eligibility, strict snapshot context validation, and tie-aware rank diagnostics.
+Switching from traded tokens to quick filters restores the value ranking;
+expanded protocol details now restore the normal layout when changing views.
+
 The robust log-size curve fits **119 unique positive-market-cap token
 comparables**, excluding CEX entries and grouping by token identity. The exact
 ranked-value function achieves **3.39× median factor error vs. 5.24×** for the
@@ -57,9 +64,15 @@ Principal loss and labor cost are excluded from the scenario net.
 ## Verify and recapture
 
 ```sh
-ORBIT_INPUT=/absolute/path/to/input/snapshot.json node --test tests/engine.test.cjs
+node --test tests/*.test.cjs
+node tools/verify-readme.mjs --live
 node tools/verify-output.mjs ./out /absolute/path/to/input/snapshot.json
 ```
+
+Tests discover `token-radar-01-kit/input/snapshot.json` or the legacy
+`.makefun-kit/token-radar-01-kit/input/snapshot.json`. Set `ORBIT_INPUT` to use
+another snapshot location. Live badge verification is a development check;
+the application and unit tests run offline.
 
 Screenshots come from the actual page. To regenerate them, install Playwright
 and its Chromium browser in your development environment, and point
@@ -68,6 +81,11 @@ and its Chromium browser in your development environment, and point
 ```sh
 PLAYWRIGHT_MODULE=/absolute/path/to/node_modules/playwright node tools/capture.mjs /absolute/path/to/input/snapshot.json
 ```
+
+`playwright-core` is also supported. To use an installed headless Chromium,
+set `PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/chromium` alongside `PLAYWRIGHT_MODULE`.
+`PLAYWRIGHT_CHROMIUM_ARGS` accepts a JSON array of additional browser flags
+for constrained development environments.
 
 Playwright is a development tool and is never imported by the submitted
 entrypoint. Re-run the entrypoint after recapturing so its dossier includes the

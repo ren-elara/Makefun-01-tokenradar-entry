@@ -45,8 +45,6 @@ for (const f of files) {
   assert.ok(!/https?:\/\//i.test(s), `Remote URL in ${f.name}`);
 }
 const dashboardBytes = files.reduce((a, f) => a + f.bytes, 0);
-// Leave room for the dossier's path, line-count, and fence metadata.
-assert.ok(dashboardBytes < 63000, 'Dashboard risks source truncation');
 const images = readdirSync(join(out, 'screenshots')).filter((n) => !n.startsWith('.'));
 assert.ok(images.length >= 3 && images.length <= 4);
 for (const name of images) {
@@ -67,4 +65,7 @@ for (const name of images) {
 const dossier = readFileSync(join(out, 'dossier.json'));
 assert.ok(dossier.length <= 1572864);
 assert.ok(dossier.equals(Buffer.from(buildDossier(out, { text_max_bytes: 65536 }))), 'Dossier bytes differ from the official builder');
+const dossierText = JSON.parse(dossier).text;
+assert.ok(!/^\[Cut at 65536 bytes:/m.test(dossierText), 'Dashboard source was truncated in the dossier');
+for (const f of files) assert.ok(dossierText.includes(readFileSync(f.path, 'utf8')), `Missing dossier source: ${f.name}`);
 console.log(JSON.stringify({ checks: 7, rows: rows.length, watchlist: snapshot.watchlist.length, dashboardBytes, screenshots: images.length, dossierBytes: dossier.length, dossierSha256: createHash('sha256').update(dossier).digest('hex') }, null, 2));

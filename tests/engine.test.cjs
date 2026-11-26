@@ -1,9 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
+const { existsSync, readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 const O = require('../dashboard/engine.js');
-const input = process.env.ORBIT_INPUT || resolve(__dirname, '../.makefun-kit/token-radar-01-kit/input/snapshot.json');
+const input = process.env.ORBIT_INPUT || ['../token-radar-01-kit/input/snapshot.json', '../.makefun-kit/token-radar-01-kit/input/snapshot.json'].map(p => resolve(__dirname, p)).find(existsSync);
+if (!input) throw new Error('Unpack the official token-radar-01 kit or set ORBIT_INPUT to snapshot.json.');
 const snapshot = JSON.parse(readFileSync(input, 'utf8'));
 const settings = { deposit: 10000, days: 30, gas: 1, opportunity: 5, eligibility: 50, allocation: 10 };
 
@@ -50,4 +51,38 @@ test('zero TVL, missing context and extreme inputs remain finite and determinist
   assert.ok(Number.isFinite(p.implied_value_usd));
   assert.ok(Number.isFinite(p.farm.net));
   assert.equal(p.farm.verdict,'Skip');
+});
+
+test('optional snapshot context and watchlist identities are validated explicitly', () => {
+  for (const patch of [{chains: null}, {chains: [123]}, {category: {}}, {symbol: 12}, {gecko_id: []}, {mcap_usd: '12'}, {change_7d: Infinity}, {listed_at: '2026-02-30'}]) {
+    const clone = structuredClone(snapshot);
+    Object.assign(clone.protocols[0], patch);
+    assert.throws(() => O.derive(clone, settings), /Malformed protocol context/);
+  }
+  assert.throws(() => O.derive({...snapshot, watchlist: [...snapshot.watchlist, snapshot.watchlist[0]]}, settings), /duplicate watchlist/);
+  assert.throws(() => O.derive({...snapshot, watchlist: [null]}, settings), /watchlist slug/);
+  assert.equal(O.ageDays(snapshot.as_of, '2026-02-30'), null);
+  assert.equal(O.ageDays('invalid', '2026-01-01'), null);
+});
+
+test('scenario defaults, zero allocations and invalid controls have defined behavior', () => {
+  const d = O.derive(snapshot), p = d.rows[0];
+  assert.deepEqual(d.settings, settings);
+  const scenario = (patch) => O.plan(p, p.implied_value_usd, [p.band_low_usd, p.band_high_usd], p.age_days, {...settings, ...patch});
+  const zero = scenario({allocation: 0});
+  assert.equal(zero.gross, 0);
+  assert.equal(zero.breakeven, null);
+  assert.equal(zero.verdict, 'Skip');
+  assert.equal(scenario({eligibility: 0}).gross, 0);
+  assert.ok(scenario({gas: 0}).cost < p.farm.cost);
+  for (const patch of [{deposit: -1}, {deposit: 1e7}, {days: 0}, {days: NaN}, {gas: -1}, {gas: Infinity}, {eligibility: 101}, {allocation: '10'}, {opportunity: null}]) {
+    assert.throws(() => scenario(patch), /Invalid scenario setting/);
+  }
+});
+
+test('Spearman diagnostics use average ranks for ties and zero for a constant prediction', () => {
+  const rows = [1, 2, 3, 4].map(mcap_usd => ({mcap_usd, tvl_usd: 1}));
+  assert.equal(O.metrics(rows, () => 1).rank_r, 0);
+  assert.equal(O.metrics(rows, p => p.mcap_usd <= 2 ? 1 : 2).rank_r, 0.89);
+  assert.equal(O.metrics(rows.slice().reverse(), p => p.mcap_usd <= 2 ? 1 : 2).rank_r, 0.89);
 });

@@ -24,9 +24,8 @@ function readSnapshot(): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-const defaults = { deposit: 10000, days: 30, gas: 1, opportunity: 5, eligibility: 50, allocation: 10 };
 const snapshot = readSnapshot();
-const data = Orbit.derive(snapshot, defaults);
+const data = Orbit.derive(snapshot);
 const out = resolve(arg('output', process.env.MAKEFUN_OUTPUT_DIR ?? '/output'));
 mkdirSync(out, { recursive: true });
 mkdirSync(join(out, 'dashboard'), { recursive: true });

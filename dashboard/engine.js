@@ -6,7 +6,9 @@
 })(typeof globalThis === 'object' ? globalThis : this, function () {
   'use strict';
 
-  const VERSION = 'orbit-1.0';
+  const VERSION = 'orbit-1.1';
+  const DEFAULTS = { deposit: 10000, days: 30, gas: 1, opportunity: 5, eligibility: 50, allocation: 10 };
+  const LIMITS = { deposit: [1, 1e6], days: [1, 365], gas: [0, 1000], opportunity: [0, 100], eligibility: [0, 100], allocation: [0, 100] };
   const FAMILIES = ['Lending', 'Dexs', 'Risk Curators', 'Yield', 'RWA', 'Derivatives', 'Liquid Staking', 'CDP', 'Onchain Capital Allocator', 'Bridge', 'Canonical Bridge'];
   const EXCHANGE_PREFIX = /^(?:Binance|Coinbase|Bybit|Kraken|Bitget|OKX|Bitfinex|Gemini)\b/i;
   const VERSION_SUFFIX = /\s(?:V\d+(?:\.\d+)?|v\d+(?:\.\d+)?|\d+\.\d+)$/;
@@ -37,8 +39,9 @@
     return '$' + Math.round(n).toLocaleString('en-US');
   };
 
+  const validDate = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && Number.isFinite(Date.parse(s)) && new Date(s).toISOString().slice(0, 10) === s;
   function ageDays(asOf, listedAt) {
-    if (typeof listedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(listedAt)) return null;
+    if (!validDate(asOf) || !validDate(listedAt)) return null;
     const to = Date.parse(asOf + 'T00:00:00Z'), from = Date.parse(listedAt + 'T00:00:00Z');
     if (!Number.isFinite(to) || !Number.isFinite(from)) return null;
     return Math.max(0, Math.floor((to - from) / DAY));
@@ -103,7 +106,11 @@
     if (!errors.length) return { n: 0, median_multiple: 0, mean_abs_log: 0, within_3x_pct: 0, rank_r: 0 };
     const abs = errors.map(Math.abs);
     const a = records.filter((p) => finite(p.mcap_usd) && p.mcap_usd > 0 && p.tvl_usd > 0);
-    const ranks = (xs) => { const order = xs.map((v, i) => [v, i]).sort((x, y) => x[0] - y[0]); const out = Array(xs.length); order.forEach((v, i) => out[v[1]] = i + 1); return out; };
+    const ranks = (xs) => {
+      const order = xs.map((v, i) => [v, i]).sort((x, y) => x[0] - y[0]), out = Array(xs.length);
+      for (let i = 0; i < order.length;) { let j = i + 1; while (j < order.length && order[j][0] === order[i][0]) j++; for (let k = i; k < j; k++) out[order[k][1]] = (i + j + 1) / 2; i = j; }
+      return out;
+    };
     const rx = ranks(a.map((p) => Math.log(Math.max(1, predict(p))))), ry = ranks(a.map((p) => Math.log(p.mcap_usd)));
     const mx = rx.reduce((s, v) => s + v, 0) / rx.length, my = ry.reduce((s, v) => s + v, 0) / ry.length;
     const den = Math.sqrt(rx.reduce((s, v) => s + (v - mx) ** 2, 0) * ry.reduce((s, v) => s + (v - my) ** 2, 0));
@@ -173,6 +180,8 @@
     return FAMILIES.includes(c) ? c : 'Other';
   }
   function plan(p, implied, band, age, settings) {
+    settings = { ...DEFAULTS, ...settings };
+    for (const [k, [min, max]] of Object.entries(LIMITS)) if (!finite(settings[k]) || settings[k] < min || settings[k] > max) throw new Error(`Invalid scenario setting: ${k}`);
     const tvl = Math.max(0, p.tvl_usd), deposit = settings.deposit, days = settings.days;
     const gas = settings.gas, apr = settings.opportunity / 100;
     const family = familyFor(p.category);
@@ -212,7 +221,9 @@
   }
   function derive(snapshot, settings) {
     if (!snapshot || !Array.isArray(snapshot.protocols) || !Array.isArray(snapshot.watchlist)) throw new Error('Snapshot requires protocols[] and watchlist[].');
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(snapshot.as_of) || !Number.isFinite(Date.parse(snapshot.as_of)) || new Date(snapshot.as_of).toISOString().slice(0, 10) !== snapshot.as_of) throw new Error('Snapshot requires a valid as_of date.');
+    if (!validDate(snapshot.as_of)) throw new Error('Snapshot requires a valid as_of date.');
+    if (snapshot.watchlist.some((s) => typeof s !== 'string' || !s || /\s/.test(s)) || new Set(snapshot.watchlist).size !== snapshot.watchlist.length) throw new Error('Malformed or duplicate watchlist slug.');
+    settings = { ...DEFAULTS, ...settings };
     for (const p of snapshot.protocols) if (!p || typeof p !== 'object') throw new Error('Malformed protocol row.');
     const watch = new Set(snapshot.watchlist), bySlug = new Map(snapshot.protocols.map((p) => [p.slug, p]));
     for (const slug of watch) if (!bySlug.has(slug)) throw new Error(`Watchlist protocol missing from snapshot: ${slug}`);
@@ -221,6 +232,10 @@
       if (!p || typeof p.slug !== 'string' || !p.slug || /\s/.test(p.slug) || p.slug.length > 128 || unique.has(p.slug)) throw new Error('Snapshot has a missing or duplicate protocol slug.');
       unique.add(p.slug);
       if (typeof p.name !== 'string' || !p.name.trim() || !finite(p.tvl_usd) || p.tvl_usd < 0) throw new Error(`Malformed protocol row: ${p.slug}`);
+      if (!Array.isArray(p.chains) || p.chains.some((c) => typeof c !== 'string' || !c.trim()) ||
+          ['category', 'gecko_id', 'symbol'].some((k) => p[k] != null && typeof p[k] !== 'string') ||
+          ['change_7d', 'mcap_usd'].some((k) => p[k] != null && !finite(p[k])) ||
+          (p.listed_at != null && !validDate(p.listed_at))) throw new Error(`Malformed protocol context: ${p.slug}`);
     }
     const allRankable = snapshot.protocols.filter((p) => preToken(p) && (watch.has(p.slug) || !excluded(p)));
     const comps = comparableModel(snapshot.protocols, snapshot.as_of);
@@ -243,5 +258,5 @@
     const universe = snapshot.protocols.map((p) => ({ ...p, status: !preToken(p) ? 'Traded' : (ranked.has(p.slug) ? 'Ranked' : 'Set aside'), reason: reason(p, watch), rank: scored.find((q) => q.slug === p.slug)?.rank ?? null }));
     return { version: VERSION, as_of: snapshot.as_of, source: snapshot.source, floor_usd: snapshot.floor_usd, settings, model: comps, rows: scored, traded: rankedTrade, universe, watchlist_size: watch.size, trained_size: comps.n, traded_size: traded.length, excluded_size: snapshot.protocols.length - scored.length - traded.length };
   }
-  return { VERSION, FAMILIES, fmt, median, quantile, ageDays, preToken, excluded, fitRegression, metrics, comparableModel, adjustments, valuation, predict, plan, derive };
+  return { VERSION, DEFAULTS, LIMITS, FAMILIES, fmt, median, quantile, ageDays, preToken, excluded, fitRegression, metrics, comparableModel, adjustments, valuation, predict, plan, derive };
 });
