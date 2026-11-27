@@ -1,0 +1,113 @@
+{
+  "compiler": "terser@5.51.4",
+  "html": "html-minifier-terser@7.2.0",
+  "css": "clean-css@5.3.3",
+  "options": {
+    "compress": {
+      "passes": 3
+    },
+    "mangle": true,
+    "format": {
+      "comments": false,
+      "ascii_only": false,
+      "max_line_len": 240
+    }
+  },
+  "classes": {
+    "accent-text": "c0",
+    "age-cell": "c1",
+    "age-col": "c2",
+    "app-error": "c3",
+    "audit-summary": "c4",
+    "audit-table": "c5",
+    "axis-foot": "c6",
+    "band-col": "c7",
+    "bar-track": "c8",
+    "board-layout": "c9",
+    "board-tools": "ca",
+    "brand-mark": "cb",
+    "chart-head": "cc",
+    "chart-legend": "cd",
+    "chart-panel": "ce",
+    "close-detail": "cf",
+    "coefficient-row": "cg",
+    "cohort-stats": "ch",
+    "detail-actions": "ci",
+    "detail-band": "cj",
+    "detail-block": "ck",
+    "detail-empty": "cl",
+    "detail-icon": "cm",
+    "detail-meta": "cn",
+    "detail-panel": "co",
+    "detail-peers": "cp",
+    "detail-plan": "cq",
+    "detail-top": "cr",
+    "detail-value": "cs",
+    "empty-state": "ct",
+    "evidence-note": "cu",
+    "evidence-panel": "cv",
+    "evidence-row": "cw",
+    "evidence-rule": "cx",
+    "fact-line": "cy",
+    "filter-chip": "cz",
+    "fine-print": "c10",
+    "formula-line": "c11",
+    "label-chip": "c12",
+    "limits-grid": "c13",
+    "live-dot": "c14",
+    "method-band": "c15",
+    "method-copy": "c16",
+    "metric-big": "c17",
+    "metric-strip": "c18",
+    "metric-times": "c19",
+    "mobile-sort": "c1a",
+    "model-badge": "c1b",
+    "nav-button": "c1c",
+    "primary-nav": "c1d",
+    "protocol-col": "c1e",
+    "protocol-name": "c1f",
+    "protocol-sub": "c1g",
+    "quick-filters": "c1h",
+    "rank-col": "c1i",
+    "research-block": "c1j",
+    "research-grid": "c1k",
+    "research-view": "c1l",
+    "results-count": "c1m",
+    "scenario-grid": "c1n",
+    "scenario-notice": "c1o",
+    "search-box": "c1p",
+    "section-head": "c1q",
+    "select-wrap": "c1r",
+    "signal-badge": "c1s",
+    "signal-key": "c1t",
+    "signal-stack": "c1u",
+    "sr-only": "c1v",
+    "tab-group": "c1w",
+    "table-wrap": "c1x",
+    "text-button": "c1y",
+    "tiny-tag": "c1z",
+    "validation-bars": "c20"
+  },
+  "files": {
+    "app.css": {
+      "source": "efc7be2d776f52a7b1b371328657a7bf4f10b969d8146f7639cc8ecfc411f691",
+      "built": "5698804623d193d282e328a7b3ed78d9841e4d379786a2700d60148eadea4e4e"
+    },
+    "app.js": {
+      "source": "4d82b55bb1cff5d56686dd4fbcadd85f1bf48f7a567f86b83ad3351f638e611a",
+      "built": "a51916e8f55a97d6ee75b29eb8ce616e8b98f36dfc69a2bb76a110cc34b0e3f7"
+    },
+    "engine.js": {
+      "source": "d057dc86a0935b594ad57b9c74a9e0de4fa6a12562e7951967cd4f4679347b47",
+      "built": "165d2709f5349f2e7edf1608f264d3967253e4d7d1f17066d3370e4ef521dde9"
+    },
+    "focus.css": {
+      "source": "56b4f4ea387e7016fa1d5138d0f8ad7804158447f15a13aa2982a0b0f2427388",
+      "built": "5ab3765aac6bce97fe4ec3d0ac6cc1f4575be9b47e543e5b191da76aa2e6674b"
+    },
+    "index.html": {
+      "source": "7701cf39dde4622d00150804537d916ea4b1ddb6f07efee63b0e3a0b014a7ef2",
+      "built": "288b4167c3e0d0428e82d014fa38d582e4fc038b7fb61b64bc646f9965e90006"
+    }
+  }
+}

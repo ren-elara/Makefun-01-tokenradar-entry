@@ -30,6 +30,10 @@ The program writes `board.json`, the static dashboard, `data.js`, three actual
 browser captures, and the exact `dossier.json` produced by the unchanged
 official `vendor/makefun-board.ts`.
 
+Readable browser sources live in `dashboard/`. The entrypoint ships the committed
+`dashboard-built/` assets, compacted to fit every source file inside the dossier's
+64 KiB text limit. No compiler runs in the competition sandbox.
+
 ## What the desk does
 
 - Sort and search the ranked board; filter by category, chain, watchlist and
@@ -49,6 +53,10 @@ context only; they do not estimate launch probability or contract safety.
 ORBIT 1.1 valuations and existing engine exports remain compatible. Scenario
 limits include zero allocation and eligibility, with strict input validation
 and tie-aware rank diagnostics.
+Bookmarked views also retain all six edited scenario assumptions, including
+zero allocation and eligibility. Invalid URL values fall back to the defaults.
+The mobile drawer isolates background controls and supports Tab, Shift+Tab,
+Escape and focus restoration.
 
 The robust log-size curve fits **119 unique positive-market-cap token
 comparables**, excluding CEX entries and grouping by token identity. The exact
@@ -72,6 +80,21 @@ node tools/verify-readme.mjs --live
 node tools/verify-output.mjs ./out /absolute/path/to/input/snapshot.json
 ```
 
+The unit tests verify source/build hashes, source-versus-shipped engine results
+and the dossier size budget. To rebuild after editing browser sources, install
+the pinned development tools outside the repository:
+
+```sh
+npm install --prefix /tmp/orbit-build --ignore-scripts --no-save --package-lock=false terser@5.51.4 html-minifier-terser@7.2.0 clean-css@5.3.3
+ORBIT_BUILD_MODULES=/tmp/orbit-build/node_modules node tools/build-dashboard.mjs
+ORBIT_BUILD_MODULES=/tmp/orbit-build/node_modules node tools/build-dashboard.mjs --check
+```
+
+Commit the generated `dashboard-built/` files and `tools/dashboard-build.json`
+together with the source edits. The manifest records source and asset hashes,
+compiler versions, options and private style-class mappings; IDs and state
+classes stay stable.
+
 Tests discover `token-radar-01-kit/input/snapshot.json` or the legacy
 `.makefun-kit/token-radar-01-kit/input/snapshot.json`. Set `ORBIT_INPUT` to use
 another snapshot location. Live badge verification is a development check;
@@ -85,6 +108,18 @@ and its Chromium browser in your development environment, and point
 PLAYWRIGHT_MODULE=/absolute/path/to/node_modules/playwright node tools/capture.mjs /absolute/path/to/input/snapshot.json
 ```
 
+Append `--verify-only --compare-source` after an explicit preview output path to
+run browser checks and 12 pixel comparisons of readable versus shipped assets
+across board, detail and filtered views, desktop/mobile and light/dark themes,
+without replacing the committed screenshots:
+
+```sh
+PLAYWRIGHT_MODULE=/absolute/path/to/node_modules/playwright node tools/capture.mjs /absolute/path/to/input/snapshot.json /tmp/orbit-preview --verify-only --compare-source
+```
+
+The comparisons require identical layout metrics and computed colors. They allow
+native-control raster rounding of at most two channel levels on 0.01% of pixels.
+
 `playwright-core` is also supported. To use an installed headless Chromium,
 set `PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/chromium` alongside `PLAYWRIGHT_MODULE`.
 `PLAYWRIGHT_CHROMIUM_ARGS` accepts a JSON array of additional browser flags
@@ -94,6 +129,11 @@ Playwright is a development tool and is never imported by the submitted
 entrypoint. Re-run the entrypoint after recapturing so its dossier includes the
 new images. Output is deterministic; screenshots are copied from source and no
 browser is required in the sandbox.
+
+Run `gitleaks detect --source . --no-git --redact` for the raw-directory secret
+scan. `.gitleaksignore` lists 19 individually reviewed false-positive fingerprints
+from public code identifiers in the ignored official kit CLI; it does not exclude
+the kit directory or disable detection rules.
 
 [SPEC.md](SPEC.md) records the official interface, limits and judge formula;
 [STRATEGY.md](STRATEGY.md) explains the architecture and research choices;

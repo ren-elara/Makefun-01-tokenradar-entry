@@ -13,7 +13,7 @@ const playwrightPath = process.env.PLAYWRIGHT_MODULE;
 if (!playwrightPath) throw new Error('Set PLAYWRIGHT_MODULE to the installed playwright module directory.');
 const { chromium } = require(playwrightPath);
 mkdirSync(output, { recursive: true });
-cpSync(root + '/dashboard', output + '/dashboard', { recursive: true });
+cpSync(resolve(process.env.ORBIT_DASHBOARD_DIR || root + '/dashboard-built'), output + '/dashboard', { recursive: true });
 const snapshot = JSON.parse(readFileSync(input, 'utf8'));
 const data = O.derive(snapshot);
 writeFileSync(output + '/data.js', 'window.ORBIT_DATA=' + JSON.stringify({ ...data, model: { ...data.model, residuals: undefined } }) + ';\n');
@@ -27,7 +27,59 @@ const errors = [], network = [];
 page.on('pageerror', (e) => errors.push(e.message));
 await page.route(/^https?:/, (route) => { network.push(route.request().url()); return route.abort(); });
 const base = pathToFileURL(output + '/dashboard/index.html').href;
-for (const [name, query] of [['board', ''], ['detail', '?protocol=firelight'], ['filtered', '?quick=worth&category=Yield']]) {
+let visualComparisons = 0;
+let rasterRoundingPixels = 0;
+if (process.argv.includes('--compare-source')) {
+  cpSync(root + '/dashboard', output + '/readable', { recursive: true });
+  const readable = pathToFileURL(output + '/readable/index.html').href;
+  for (const colorScheme of ['light', 'dark']) {
+    await page.emulateMedia({ colorScheme });
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: width === 1440 ? 1000 : 844 });
+      for (const query of ['', '?protocol=firelight', '?quick=worth&category=Yield']) {
+        const images = [];
+        const layouts = [];
+        for (const url of [base, readable]) {
+          await page.goto(url + query); await page.waitForFunction(() => window.ORBIT_READY === true);
+          images.push(await page.screenshot({ animations: 'disabled', caret: 'hide' }));
+          layouts.push(await page.locator('[id],#detail-panel *').evaluateAll(elements => elements.map(element => {
+            const box = element.getBoundingClientRect(), style = getComputedStyle(element);
+            return { tag: element.tagName, id: element.id, x: box.x, y: box.y, width: box.width, height: box.height, font: style.font, display: style.display, color: style.color, background: style.backgroundColor, border: style.border };
+          })));
+        }
+        assert.deepEqual(layouts[0], layouts[1], `Compiled layout differs: ${colorScheme}, ${width}px, ${query || 'board'}`);
+        if (!images[0].equals(images[1])) {
+          const difference = await page.evaluate(async encoded => {
+            const pixels = await Promise.all(encoded.map(async value => {
+              const image = new Image(); image.src = 'data:image/png;base64,' + value; await image.decode();
+              const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+              const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+              return context.getImageData(0, 0, image.width, image.height);
+            }));
+            let count = 0, maxDelta = 0;
+            for (let i = 0; i < pixels[0].data.length; i += 4) {
+              if ([0, 1, 2, 3].some(channel => pixels[0].data[i + channel] !== pixels[1].data[i + channel])) {
+                count++; maxDelta = Math.max(maxDelta, ...[0, 1, 2, 3].map(channel => Math.abs(pixels[0].data[i + channel] - pixels[1].data[i + channel])));
+              }
+            }
+            return { count, maxDelta, total: pixels[0].width * pixels[0].height };
+          }, images.map(image => image.toString('base64')));
+          // Native rounded input edges can vary by two channel levels between paints.
+          const equivalent = difference.maxDelta <= 2 && difference.count <= Math.ceil(difference.total / 10000);
+          if (!equivalent) {
+            writeFileSync(output + '/mismatch-built.png', images[0]); writeFileSync(output + '/mismatch-readable.png', images[1]);
+          }
+          assert.ok(equivalent, `Compiled page differs visually: ${colorScheme}, ${width}px, ${query || 'board'}: ${JSON.stringify(difference)}`);
+          rasterRoundingPixels += difference.count;
+        }
+        visualComparisons++;
+      }
+    }
+  }
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+}
+for (const [name, query] of process.argv.includes('--verify-only') ? [] : [['board', ''], ['detail', '?protocol=firelight'], ['filtered', '?quick=worth&category=Yield']]) {
   await page.goto(base + query);
   await page.waitForFunction(() => window.ORBIT_READY === true);
   await page.screenshot({ path: root + '/screenshots/' + name + '.jpg', type: 'jpeg', quality: 88 });
@@ -49,6 +101,11 @@ const selected = await page.locator('#detail-panel h2').textContent();
 await page.locator('[data-setting="deposit"]').fill('1000');
 await page.locator('[data-setting="deposit"]').dispatchEvent('change');
 if (!(await page.locator('#scenario-notice').textContent()).includes('$1,000')) throw new Error('Scenario update failed');
+assert.equal(new URL(page.url()).searchParams.get('deposit'), '1000');
+await page.reload(); await page.waitForFunction(() => window.ORBIT_READY === true);
+assert.equal(await page.locator('#detail-panel h2').textContent(), selected);
+assert.equal(await page.locator('[data-setting="deposit"]').inputValue(), '1000');
+assert.ok((await page.locator('#scenario-notice').textContent()).includes('$1,000'));
 const download = page.waitForEvent('download'); await page.locator('#csv-export').click(); await download;
 // Regressions for status transitions, numeric sorts, CSV data and detail focus.
 const slugs = () => page.locator('#protocol-rows tr').evaluateAll(rows => rows.map(row => row.dataset.slug));
@@ -75,6 +132,7 @@ assert.deepEqual(await slugs(), watch.sort((a, b) => b.net - a.net || a.slug.loc
 await page.locator('[data-setting="allocation"]').fill('0');
 await page.locator('[data-setting="allocation"]').dispatchEvent('change');
 assert.ok((await page.locator('#detail-panel').textContent()).includes('Unavailable'));
+assert.equal(new URL(page.url()).searchParams.get('allocation'), '0');
 await page.locator('[data-setting="gas"]').fill('');
 await page.locator('[data-setting="gas"]').dispatchEvent('change');
 assert.equal(await page.locator('[data-setting="gas"]').evaluate(input => input.validity.valueMissing), true);
@@ -108,8 +166,31 @@ await page.setViewportSize({ width: 390, height: 844 });
 await page.goto(base); await page.waitForFunction(() => window.ORBIT_READY === true);
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
 if (overflow) throw new Error('Mobile viewport overflows');
+const firstRow = page.locator('#protocol-rows tr').first();
+await firstRow.focus(); await page.keyboard.press('Enter');
+assert.equal(await page.locator('#detail-panel').getAttribute('role'), 'dialog');
+assert.equal(await page.locator('#detail-panel').getAttribute('aria-modal'), 'true');
+assert.equal(await page.locator('.skip-link').evaluate(element => element.inert), true);
+assert.equal(await page.locator('footer').evaluate(element => element.inert), true);
+await page.locator('#expand-detail').focus(); await page.keyboard.press('Shift+Tab');
+assert.equal(await page.evaluate(() => document.activeElement.dataset.setting), 'opportunity');
+await page.keyboard.press('Tab');
+assert.equal(await page.evaluate(() => document.activeElement.id), 'expand-detail');
+await page.keyboard.press('Escape');
+assert.equal(await firstRow.evaluate(element => element === document.activeElement), true);
+assert.equal(await page.locator('#detail-panel').getAttribute('aria-modal'), null);
+assert.equal(await page.locator('footer').evaluate(element => element.inert), false);
+await page.goto(base + '?protocol=firelight&deposit=-1&days=invalid&gas=&allocation=0&eligibility=0&opportunity=101');
+await page.waitForFunction(() => window.ORBIT_READY === true);
+for (const [key, value] of Object.entries({ ...data.settings, allocation: 0, eligibility: 0 })) {
+  assert.equal(Number(await page.locator('[data-setting="' + key + '"]').inputValue()), value, key);
+}
+assert.equal(await page.evaluate(() => document.activeElement.id), 'detail-panel');
+await page.emulateMedia({ colorScheme: 'dark' });
+await page.keyboard.press('Escape');
+assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
 if (errors.length || network.length) throw new Error(JSON.stringify({ errors, network }));
-console.log(JSON.stringify({ offline: true, rows: data.rows.length, watchlist: snapshot.watchlist.length, universe: snapshot.protocols.length, scenario: true, sorting: true, selected, csv: true, transitions: true, zeroAllocation: true, formulaEscaping: true, uncategorized: true, focus: true, mobile: true, errors, network }));
+console.log(JSON.stringify({ offline: true, rows: data.rows.length, watchlist: snapshot.watchlist.length, universe: snapshot.protocols.length, scenario: true, scenarioLinks: true, sorting: true, selected, csv: true, transitions: true, zeroAllocation: true, formulaEscaping: true, uncategorized: true, focus: true, mobile: true, modalKeyboard: true, darkMode: true, visualComparisons, rasterRoundingPixels, errors, network }));
 } finally {
   await browser.close();
 }

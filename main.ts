@@ -30,7 +30,7 @@ const out = resolve(arg('output', process.env.MAKEFUN_OUTPUT_DIR ?? '/output'));
 mkdirSync(out, { recursive: true });
 mkdirSync(join(out, 'dashboard'), { recursive: true });
 mkdirSync(join(out, 'screenshots'), { recursive: true });
-cpSync(join(here, 'dashboard'), join(out, 'dashboard'), { recursive: true });
+cpSync(join(here, 'dashboard-built'), join(out, 'dashboard'), { recursive: true });
 for (const name of ['board.jpg', 'detail.jpg', 'filtered.jpg']) {
   const source = join(here, 'screenshots', name);
   if (!existsSync(source)) throw new Error(`Missing authored screenshot ${source}.`);

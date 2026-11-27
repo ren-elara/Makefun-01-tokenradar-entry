@@ -1,5 +1,55 @@
 # ORBIT validation record
 
+## Scenario links and complete dossiers — 2026-11-27
+
+Scenario URLs now retain all six edited farming assumptions, including zero
+allocation and eligibility. Missing, blank, non-finite and out-of-range URL
+values use the existing defaults. The mobile drawer isolates the skip link and
+footer along with the other background controls, while preserving keyboard
+wrapping, Escape dismissal and focus restoration.
+
+Readable browser sources remain in `dashboard/`; `main.ts` ships the deterministic
+`dashboard-built/` assets. The pinned development build and hash manifest keep
+the complete dashboard inside the official dossier's 65,536-byte text limit.
+The competition runtime needs no compiler or installed packages.
+
+- **30 unit tests passed, 0 failed**, including source/build hashes, the complete
+  browser export surface and source-versus-shipped engine parity for default and
+  zero-allocation/eligibility scenarios.
+- Two independent entrypoint runs passed all **seven output contract checks**:
+  **195 ranked protocols, 40/40 watchlist coverage, 416 traded protocols** and
+  **758 protocols** in the complete universe. All **11 output files matched byte
+  for byte**. The dashboard is **64,588 bytes**, with every source file included
+  in full in the official dossier. `build-dashboard.mjs --check` passed.
+- The dossier is **778,088 bytes**, SHA-256
+  `ace4aa96092a768c9841e2057666239a3ef236759b7d927b8c03ba8407e5192b`.
+- Actual offline Chromium checks passed for scenario reloads, invalid URL
+  fallbacks, zero values, filtering, numeric sorting, CSV contents and escaping,
+  view transitions, mobile dialog semantics, keyboard navigation and dark mode.
+  **Zero page errors and zero HTTP(S) requests** were recorded.
+- All **12 source-versus-built visual comparisons** passed across board, detail
+  and filtered views, desktop/mobile and light/dark themes. Layout metrics and
+  computed colors match exactly. Native-control raster rounding is limited to
+  two channel levels on at most 0.01% of pixels per comparison. The three
+  committed screenshots were preserved.
+- The live README check verified all three exact repository-specific badge
+  URLs: **HTTP 200** with SVG content.
+- Official offline worktree preflight returned **`ok: true`, no failed checks**
+  against the existing native OpenCode transcript archive. `thinking_reproduces`
+  passed at **47.6% (1,588/3,335 counted lines)**, above the **30%** requirement.
+  `thinking_revised` passed with five contributing messages for
+  `dashboard/app.js` and two for `main.ts`; recording, timestamp, pricing and
+  run-record checks also passed for all nine parsed sessions.
+- Gitleaks reported **zero findings** in Git history, the raw directory and the
+  extracted existing transcript archive. `.gitleaksignore` identifies 19 exact
+  false-positive fingerprints in the unmodified, ignored official kit CLI;
+  detection rules and scanning of the kit directory remain enabled.
+
+Local execution used Alpine ARM64 Node **22.23.5**, the external **tsx** loader
+and software/headless Chromium flags described below. Official grading remains
+server-side. Earlier release and intake records below retain their original
+dates and findings.
+
 ## ORBIT 1.1 upgrade — 2026-11-26
 
 The upgrade adds sortable scenario net, correct traded-cap sorting and CSV

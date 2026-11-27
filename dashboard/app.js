@@ -36,6 +36,12 @@
   const requestedSlug = parameters.get('protocol') || '';
   const validSlug = rankedBySlug.has(requestedSlug) || universeBySlug.has(requestedSlug);
   const initialStatus = choices(parameters.get('status'), statuses, 'Ranked');
+  const baseSettings = { ...engine.DEFAULTS, ...data.settings };
+  const initialSettings = { ...baseSettings };
+  for (const [key, [min, max]] of Object.entries(engine.LIMITS)) {
+    const raw = parameters.get(key), value = Number(raw);
+    if (raw !== null && raw.trim() && Number.isFinite(value) && value >= min && value <= max) initialSettings[key] = value;
+  }
   const state = {
     view: choices(parameters.get('view'), views, 'board'),
     status: initialStatus,
@@ -51,7 +57,7 @@
     inspected: validSlug,
     expanded: validSlug && parameters.get('detail') !== 'compact',
     drawerOpen: validSlug,
-    settings: { ...engine.DEFAULTS, ...data.settings },
+    settings: initialSettings,
   };
   if (state.quick) state.status = 'Ranked';
   let currentRows = [];
@@ -67,6 +73,9 @@
       if (state[key] && !(key === 'view' && state[key] === 'board')) query.set(key, state[key]);
     }
     if (state.status !== 'Ranked') query.set('status', state.status);
+    for (const key of Object.keys(engine.LIMITS)) {
+      if (state.settings[key] !== baseSettings[key]) query.set(key, state.settings[key]);
+    }
     if (state.sort !== 'rank' || state.direction !== 1) {
       query.set('sort', state.sort);
       query.set('direction', state.direction);
@@ -107,6 +116,8 @@
       } else container.inert = modal;
     }
     byId('protocol-table').closest('.table-wrap').inert = modal;
+    document.querySelector('.skip-link').inert = modal;
+    document.querySelector('footer').inert = modal;
   }
 
   function renderCounts() {
@@ -452,7 +463,7 @@
       if (!input.checkValidity() || !Number.isFinite(input.valueAsNumber)) { input.reportValidity(); return; }
       const key = input.dataset.setting;
       state.settings[key] = input.valueAsNumber;
-      renderBoard(); renderDetail();
+      renderBoard(); renderDetail(); writeLocation();
       byId('detail-panel').querySelector('[data-setting="' + key + '"]')?.focus({ preventScroll: true });
     });
     media.addEventListener('change', () => {
