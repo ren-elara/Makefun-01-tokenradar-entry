@@ -1,5 +1,59 @@
 # ORBIT validation record
 
+## Itemized farming plans — 2026-11-27
+
+The upgrade targets concrete farming plans, the third criterion in the sealed
+judge rubric. An audit of the existing board found 142 category-specific plans
+and no fully reconciled stage budgets. The new plans cover **185 of 195** ranked
+protocols with category-specific entry and exit recipes. All **195 plans** now
+reconcile six stages' costs, gas transactions and minutes to their scenario
+totals. The remaining ten require a documented reversible route before use.
+
+Pilots use at most $100, with the remaining deposit allocated only after receipt
+and withdrawal checks. Transaction budgets include approvals and revocations:
+five for the default single-asset scenario, seven for a paired-asset DEX plan,
+and one fewer when the pilot is the full deposit. Weekly reviews exclude the
+exit date. These are editable scenario allowances, not observed on-chain fees.
+
+- **34 unit tests passed, 0 failed**, including reconciliation across the ranked
+  board, pilot boundaries, paired-asset approvals, fractional review horizons,
+  category fallbacks and source-versus-built engine parity.
+- Offline Chromium passed scenario edits and reloads, filters, numeric sorting,
+  CSV exports and escaping, view transitions, mobile dialog semantics, keyboard
+  navigation and dark mode. **Zero page errors and zero HTTP(S) requests**.
+- All **12 source-versus-built visual comparisons** passed across board, detail
+  and filtered views, desktop/mobile and light/dark themes. Layout metrics and
+  computed colors match exactly. Repeated captures of the same native number
+  inputs showed corner raster variation; comparisons allow at most two channel
+  levels and 24 pixels per input, only within its corners.
+- All three screenshots were recaptured from the actual built dashboard. Board
+  and filtered views are **1440×1000**; the Curvance detail is **1440×1440**, with
+  all six stages visible and checked before capture. The largest is **259,135
+  bytes**, within the official limits.
+- Two independent entrypoint runs passed all **seven output contract checks**:
+  **195 ranked protocols, 40/40 watchlist coverage, 416 traded protocols**, and
+  **758 protocols** in the complete universe. All **11 output files matched byte
+  for byte**. Dashboard assets total **64,954 bytes**, with all source included
+  in the official dossier. The pinned build's `--check` passed.
+- The final dossier is **874,274 bytes**, SHA-256
+  `0cf8bd351c8a872cdaa448216625d1cbe71936fb3fd6071d2fd819ae7427ae79`.
+- All three exact live README badges returned **HTTP 200** with SVG content.
+- Official offline preflight against the existing native OpenCode transcript
+  archive returned **`ok: true`, no failed checks**. Authored coverage exceeds
+  **50%**, above the required **30%**, with authored entrypoint lines.
+- Gitleaks found **zero leaks** in Git history, the raw directory and the
+  extracted existing transcript archive. The 19 exact false-positive
+  fingerprints were refreshed after reviewing their new locations in the
+  official kit CLI; they are public code expressions and environment-variable
+  names. The kit remains scanned, and no detection rule is disabled.
+
+Category, growth and tracking-age model experiments did not reliably improve
+both grouped and newer-cohort diagnostics. The retained valuation model reports
+**3.39×** grouped median factor error and **7.15×** on nine newer-tracking tokens.
+These are local valuation diagnostics; the official AI judge runs server-side.
+Local Node **22.23.5** execution used the external tsx loader and headless
+Chromium flags described in the earlier records below.
+
 ## Scenario links and complete dossiers — 2026-11-27
 
 Scenario URLs now retain all six edited farming assumptions, including zero

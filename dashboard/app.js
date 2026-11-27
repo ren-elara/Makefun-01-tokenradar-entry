@@ -316,14 +316,14 @@
       <div class="detail-block"><h3>Farm economics <span class="pill ${farm.verdict}">${farm.verdict}</span></h3>
         <div class="scenario-grid">${settings.map(([key, label]) => `<label>${label}<input data-setting="${key}" type="number" required min="${engine.LIMITS[key][0]}" max="${engine.LIMITS[key][1]}" step="any" value="${state.settings[key]}"></label>`).join('')}</div>
         ${fact('Gross, conditional on launch', money(farm.gross))}
-        ${fact('Four gas tx + execution + capital', money(farm.cost))}
+        ${fact(farm.transactions + ' gas tx + execution + capital', money(farm.cost))}
         ${fact('Net / P10 downside net', money(farm.net) + ' / ' + money(farm.netLow))}
         ${fact('Break-even eligibility at launch', farm.breakeven === null ? 'Unavailable' : farm.breakeven > 100 ? '>100%' : farm.breakeven.toFixed(1) + '%')}
         ${fact('Time · net per hour', farm.hours.toFixed(1) + 'h · ' + money(farm.net / farm.hours))}
         <p class="fine-print">${escape(farm.assumptions)}</p>
       </div>
       ${signalBlock}
-      <div class="detail-block"><h3>Concrete interaction plan</h3><ol class="detail-plan">${farm.steps.map(step => `<li>${escape(step.trim())}</li>`).join('')}</ol></div>
+      <div class="detail-block"><h3>Pilot → allocate → exit</h3><ol class="detail-plan">${farm.steps.map(step => `<li>${escape(step.trim())}</li>`).join('')}</ol></div>
       <div class="detail-block"><h3>Nearby traded comparables</h3>${peers.length ? `<ul class="detail-peers">${peers.map(peer => `<li><b>${escape(peer.name)}</b><span>${engine.fmt(peer.tvl_usd)} TVL · ${engine.fmt(peer.mcap_usd)} recorded cap</span></li>`).join('')}</ul>` : '<p class="fine-print">No positive-TVL comparables in this category.</p>'}<p class="fine-print">Nearest by log TVL within the category. The pooled fit uses every eligible comparable.</p></div>`;
     syncLayout();
   }

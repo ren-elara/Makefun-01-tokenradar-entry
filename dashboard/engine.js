@@ -254,18 +254,25 @@
   }
 
   function familyFor(category) {
+    if (['Yield Aggregator', 'Farm', 'Liquidity Manager', 'CDP Manager', 'Indexes'].includes(category)) return 'Yield';
+    if (['Uncollateralized Lending', 'Collateral Markets'].includes(category)) return 'Lending';
+    if (category === 'Dual-Token Stablecoin') return 'CDP';
+    if (category === 'CeDeFi') return 'RWA';
+    if (['Restaking', 'Staking Pool', 'Anchor BTC', 'Decentralized BTC', 'Stablecoin Wrapper'].includes(category)) return 'Liquid Staking';
+    if (['Basis Trading', 'Leveraged Farming', 'Interest Rate Derivatives'].includes(category)) return 'Derivatives';
     return FAMILIES.includes(String(category || 'Other')) ? String(category) : 'Other';
   }
 
-  function interactionFor(family, chain) {
-    if (family === 'Lending' || family === 'CDP') return `Test a tiny reversible supply or collateral position on ${chain}`;
-    if (family === 'Dexs' || family === 'Yield') return `Check pool depth, then test a balanced LP position on ${chain}`;
-    if (family === 'Risk Curators' || family === 'Onchain Capital Allocator') return `Inspect vault assets and curator controls before a small vault deposit on ${chain}`;
-    if (family === 'RWA') return `Check jurisdiction and redemption eligibility before considering the ${chain} product`;
-    if (family === 'Derivatives') return `Avoid leverage; only test a minimal hedged position if it is eligible on ${chain}`;
-    if (family === 'Liquid Staking') return `Verify contract and redemption terms before a small staking test on ${chain}`;
-    if (family.includes('Bridge')) return `Verify the official bridge route and withdrawal path before a minimal transfer to ${chain}`;
-    return `Verify the live product and access requirements before a minimal, reversible test on ${chain}`;
+  function interactionFor(family) {
+    if (family === 'Lending') return ['Supply an asset without borrowing; check withdrawal liquidity', 'Withdraw supplied assets'];
+    if (family === 'CDP') return ['Deposit supported collateral without minting debt', 'Redeem collateral with no debt outstanding'];
+    if (family === 'Dexs') return ['Add balanced owned assets to a liquid pool; check fees, range and LP receipt', 'Remove liquidity into both assets'];
+    if (['Yield', 'Risk Curators', 'Onchain Capital Allocator'].includes(family)) return ['Deposit in an unlevered vault; check assets, manager controls and share price', 'Redeem vault shares via its withdrawal queue'];
+    if (family === 'RWA') return ['Complete eligibility checks; verify dealing dates before subscribing', 'Request redemption before the cutoff'];
+    if (family === 'Derivatives') return ['Use eligible collateral-only deposits; stop if trading exposure is required', 'Withdraw collateral with no open position'];
+    if (family === 'Liquid Staking') return ['Deposit base assets for receipts only if unbonding fits the horizon', 'Redeem receipts and complete unbonding'];
+    if (family.includes('Bridge')) return ['Check destination gas and return liquidity before bridging', 'Bridge assets back via the verified route'];
+    return ['Find a documented reversible deposit route; stop if none exists', 'Use the documented redemption route'];
   }
 
   function plan(protocol, implied, band, age, settings) {
@@ -278,8 +285,15 @@
     const share = Math.min(1, deposit / Math.max(tvl, 1));
     const gross = implied * allocation * share * eligibility;
     const low = band[0] * allocation * share * eligibility;
+    const pilot = Math.min(deposit, 100);
+    const remaining = deposit - pilot;
+    const approvals = family === 'Dexs' ? 2 : 1;
+    const transactions = approvals * 2 + 2 + Number(remaining > 0);
+    const reviews = Math.max(0, Math.ceil(days / 7) - 1);
     const slippage = deposit * 0.001;
-    const cost = gas * 4 + slippage + deposit * (scenario.opportunity / 100) * days / 365;
+    const gasCost = gas * transactions;
+    const capitalCost = deposit * (scenario.opportunity / 100) * days / 365;
+    const cost = gasCost + slippage + capitalCost;
     const net = gross - cost;
     const netLow = low - cost;
     const threshold = implied * allocation * share;
@@ -288,19 +302,22 @@
     if (tvl <= 0 || (protocol.change_7d ?? 0) <= -15 || net < 0) verdict = 'Skip';
     else if (netLow >= 0 && breakeven <= 33 && age !== null && age >= 90) verdict = 'Pilot';
     const chain = Array.isArray(protocol.chains) && protocol.chains.length ? protocol.chains[0] : 'the listed chain';
-    const interaction = interactionFor(family, chain);
+    const [enter, exit] = interactionFor(family);
+    const stage = (title, action, transactions, minutes, cost) => ({ title, action, transactions, minutes, cost });
+    const stages = [
+      stage('Verify route', `Verify ${protocol.name}'s official app, ${chain} contracts and withdrawal preview; stop if route or lock period is unverified.`, 0, 10, 0),
+      stage('Eligibility', 'Check wallet/geography eligibility and official reward rules. The snapshot confirms no rewards.', 0, 5, 0),
+      stage('Pilot', `${enter} on ${chain} with $${pilot}. Cap combined approvals at $${deposit}; confirm receipt and withdrawal preview.`, approvals + 1, 15, gas * (approvals + 1) + pilot * 0.001),
+      stage('Allocate', remaining > 0 ? `After pilot receipt and withdrawal checks, add $${remaining} to reach $${deposit}. Save hash, shares and entry TVL $${tvl}; avoid loops and borrowing.` : `The $${pilot} pilot is fully allocated; add nothing and save its hash.`, Number(remaining > 0), remaining > 0 ? 10 : 0, Number(remaining > 0) * gas + remaining * 0.001),
+      stage('Monitor', `Check withdrawal access, TVL, permissions and rules ${reviews} times at 7-day intervals before day ${days}. Exit earlier if access or net worsens. Cost is capital allowance.`, 0, reviews * 5, capitalCost),
+      stage('Exit', `${exit} by day ${days}; revoke allowances, verify returned principal and save withdrawal hash.`, approvals + 1, 10, gas * (approvals + 1)),
+    ];
     return {
       gross, low, cost, net, netLow, breakeven, verdict, family, slippage,
-      hours: 0.75 + Math.ceil(days / 7) / 12,
-      steps: [
-        `Verify ${protocol.name}'s official app independently; confirm the chain, contract and current product before connecting. Cost: $0. Time: 10 minutes.`,
-        `Check wallet, geography and product eligibility; token status in this DefiLlama snapshot is not a reward promise. Cost: $0. Time: 5 minutes.`,
-        ` ${interaction}. Estimate about $${gas} per transaction; begin below the $${deposit.toLocaleString('en-US')} scenario deposit. Time: 15 minutes.`,
-        `Record deposit, TVL and one useful interaction; avoid repeat volume, wash trading, leverage and transactions done only for an unverified allocation. Cost: gas shown above. Time: ${days} days maximum.`,
-        `Recheck TVL, withdrawals, permission changes and official announcements weekly; the value band is a traded-token cross-section, not launch odds. Cost: $0. Time: 5 minutes weekly.`,
-        `Withdraw or revoke approvals when expected net economics turn negative; never pay a claim fee, and verify any distribution through official channels. Cost: about $${gas} gas. Time: 10 minutes.`,
-      ],
-      assumptions: `Scenario only: $${deposit} for ${days}d, ${scenario.eligibility}% assumed eligibility, ${scenario.allocation}% hypothetical TVL-pro-rata allocation; four gas transactions, 0.1% execution allowance and capital cost deducted. Principal loss and labor are not included. No allocation or launch probability is observed.`,
+      pilot, remaining, reviews, transactions, gasCost, capitalCost, stages,
+      hours: sum(stages.map(item => item.minutes)) / 60,
+      steps: stages.map(item => `${item.title}: ${item.action} Cost: $${item.cost.toFixed(2)} (${item.transactions} gas tx). Time: ${item.minutes} minutes.`),
+      assumptions: `Category recipe, not verified eligibility. Assumed ${scenario.eligibility}% eligible share, ${scenario.allocation}% TVL-pro-rata allocation; ${transactions} gas tx at $${gas}, 0.1% execution, ${scenario.opportunity}% capital APR. Principal loss and labor excluded.`,
     };
   }
 

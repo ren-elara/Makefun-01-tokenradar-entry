@@ -21,12 +21,28 @@ const hash = value => createHash('sha256').update(value).digest('hex');
 const selectors = ['app.css', 'focus.css'].map(name => readFileSync(join(source, name), 'utf8')).join('\n');
 const classes = [...new Set([...selectors.matchAll(/\.([A-Za-z_][\w-]*)/g)].map(match => match[1]))].sort();
 // Stable IDs and state classes stay public; private style classes share one map.
-const stable = new Set(['focus-detail', 'drawer-open', 'detail-full', 'skip-link']);
-const classMap = new Map(classes.filter(name => name.includes('-') && !stable.has(name)).map((name, index) => [name, 'c' + index.toString(36)]));
+const stable = new Set([
+  'focus-detail', 'drawer-open', 'detail-full', 'skip-link',
+  'active', 'early', 'selected', 'neutral', 'positive', 'negative', 'warning',
+  'Observe', 'Pilot', 'Skip',
+]);
+const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+function shortClass(index) {
+  let name = '';
+  do {
+    name = alphabet[index % alphabet.length] + name;
+    index = Math.floor(index / alphabet.length) - 1;
+  } while (index >= 0);
+  return name;
+}
+const classMap = new Map(classes.filter(name => !stable.has(name)).map((name, index) => [name, shortClass(index)]));
 for (const name of classMap.values()) assert.ok(!classes.includes(name), `Class collision: ${name}`);
-function styleClasses(text) {
-  return text.replace(/\.([A-Za-z_][\w-]*)/g, (match, name) => classMap.has(name) ? '.' + classMap.get(name) : match)
-    .replace(/\bclass="([^"]*)"/g, (_, names) => 'class="' + names.replace(/[A-Za-z_][\w-]*/g, name => classMap.get(name) || name) + '"');
+function styleClasses(text, name) {
+  const selectors = value => value.replace(/\.([A-Za-z_][\w-]*)/g, (match, name) => classMap.has(name) ? '.' + classMap.get(name) : match);
+  // Only selectors and class attributes are style names; row.value is JavaScript.
+  if (name.endsWith('.css')) text = selectors(text);
+  if (name.endsWith('.js')) text = text.replace(/(['"])(\.[^'"\n]*)\1/g, (_, quote, selector) => quote + selectors(selector) + quote);
+  return text.replace(/\bclass="([^"]*)"/g, (_, names) => 'class="' + names.replace(/[A-Za-z_][\w-]*/g, name => classMap.get(name) || name) + '"');
 }
 const options = { compress: { passes: 3 }, mangle: true, format: { comments: false, ascii_only: false, max_line_len: 240 } };
 const manifest = { compiler: 'terser@5.51.4', html: 'html-minifier-terser@7.2.0', css: 'clean-css@5.3.3', options, classes: Object.fromEntries(classMap), files: {} };
@@ -34,7 +50,7 @@ const assets = [];
 for (const name of readdirSync(source).sort()) {
   assert.match(name, /\.(?:html|css|js)$/);
   const text = readFileSync(join(source, name), 'utf8');
-  const compact = styleClasses(text).replace(/>\s+</g, '> <');
+  const compact = styleClasses(text, name).replace(/>\s+</g, '> <');
   const loader = name.endsWith('.css') ? 'css' : 'js';
   let built;
   if (name.endsWith('.html')) built = await minify(compact, { collapseWhitespace: true, removeComments: true, removeRedundantAttributes: true, removeAttributeQuotes: true });

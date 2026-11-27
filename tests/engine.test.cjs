@@ -189,7 +189,7 @@ test('diagnostics support empty data, perfect fits, inverse ranks and ties', () 
 
 test('scenario gross, costs, downside and breakeven match the stated formula', () => {
   const farm = scenario({});
-  const cost = settings.gas * 4 + settings.deposit * 0.001 + settings.deposit * 0.05 * settings.days / 365;
+  const cost = settings.gas * 5 + settings.deposit * 0.001 + settings.deposit * 0.05 * settings.days / 365;
   closeTo(farm.gross, 50000);
   closeTo(farm.low, 25000);
   closeTo(farm.cost, cost);
@@ -200,6 +200,78 @@ test('scenario gross, costs, downside and breakeven match the stated formula', (
   assert.ok(scenario({ deposit: 20000 }).gross > farm.gross);
   assert.ok(scenario({ gas: 0 }).cost < farm.cost);
   assert.ok(scenario({ days: 365 }).cost > farm.cost);
+});
+
+test('every ranked plan reconciles its six stages to the total cost, gas and time', () => {
+  for (const row of board.rows) {
+    const farm = row.farm;
+    assert.equal(farm.stages.length, 6, row.slug);
+    closeTo(farm.stages.reduce((total, stage) => total + stage.cost, 0), farm.cost);
+    closeTo(farm.stages.reduce((total, stage) => total + stage.minutes, 0) / 60, farm.hours);
+    assert.equal(farm.stages.reduce((total, stage) => total + stage.transactions, 0), farm.transactions);
+    closeTo(farm.gasCost + farm.slippage + farm.capitalCost, farm.cost);
+    closeTo(farm.pilot + farm.remaining, settings.deposit);
+    assert.equal(farm.pilot, 100);
+    assert.equal(farm.reviews, 4);
+    for (const [index, stage] of farm.stages.entries()) {
+      assert.ok(Number.isInteger(stage.transactions) && stage.transactions >= 0);
+      assert.ok(Number.isFinite(stage.cost) && stage.cost >= 0);
+      assert.ok(farm.steps[index].includes(`Cost: $${stage.cost.toFixed(2)}`));
+      assert.ok(farm.steps[index].includes(`Time: ${stage.minutes} minutes.`));
+    }
+  }
+});
+
+test('pilot caps, allocation fees and paired-asset approvals change the transaction budget', () => {
+  const small = scenario({ deposit: 50 }), fullPilot = scenario({ deposit: 100 });
+  const larger = scenario({ deposit: 101 });
+  assert.equal(small.pilot, 50);
+  assert.equal(small.remaining, 0);
+  assert.equal(small.stages[3].transactions, 0);
+  assert.equal(small.stages[3].cost, 0);
+  assert.equal(small.stages[3].minutes, 0);
+  assert.equal(fullPilot.transactions, 4);
+  assert.equal(larger.transactions, 5);
+  closeTo(larger.cost - fullPilot.cost, settings.gas + 0.001 + 0.05 * settings.days / 365);
+  const dex = engine.plan({ ...fixture, category: 'Dexs' }, 1e8, [5e7, 2e8], 365, settings);
+  assert.equal(dex.transactions, 7);
+  assert.equal(dex.stages[2].transactions, 3);
+  assert.equal(dex.stages[5].transactions, 3);
+  assert.ok(dex.steps[2].includes('balanced owned assets'));
+  assert.ok(dex.steps[5].includes('both assets'));
+  closeTo(dex.cost - scenario({}).cost, settings.gas * 2);
+});
+
+test('maintenance counts only reviews before exit, including fractional horizons', () => {
+  for (const [days, reviews] of [[1, 0], [7, 0], [7.5, 1], [14, 1], [15, 2], [30, 4], [365, 52]]) {
+    const farm = scenario({ days });
+    assert.equal(farm.reviews, reviews);
+    assert.equal(farm.stages[4].minutes, reviews * 5);
+    closeTo(farm.hours, (50 + reviews * 5) / 60);
+    assert.ok(farm.steps[5].includes(`by day ${days}`));
+  }
+});
+
+test('category recipes distinguish vault, receipt, collateral and unsupported routes', () => {
+  const recipe = category => engine.plan({ ...fixture, category }, 1e8, [5e7, 2e8], 365, settings);
+  for (const category of ['Yield Aggregator', 'Liquidity Manager', 'Farm', 'CDP Manager', 'Indexes']) {
+    assert.equal(recipe(category).family, 'Yield');
+    assert.ok(recipe(category).steps[2].includes('unlevered vault'));
+    assert.ok(recipe(category).steps[5].includes('withdrawal queue'));
+  }
+  for (const category of ['Restaking', 'Staking Pool', 'Anchor BTC', 'Decentralized BTC']) {
+    assert.equal(recipe(category).family, 'Liquid Staking');
+    assert.ok(recipe(category).steps[2].includes('unbonding fits the horizon'));
+  }
+  for (const category of ['Basis Trading', 'Leveraged Farming', 'Interest Rate Derivatives']) {
+    assert.equal(recipe(category).family, 'Derivatives');
+    assert.ok(recipe(category).steps[2].includes('stop if trading exposure is required'));
+  }
+  assert.ok(recipe('CDP').steps[2].includes('without minting debt'));
+  assert.equal(recipe('Collateral Markets').family, 'Lending');
+  assert.equal(recipe('CeDeFi').family, 'RWA');
+  assert.equal(recipe('Unknown future category').family, 'Other');
+  assert.ok(recipe('Unknown future category').steps[2].includes('stop if none exists'));
 });
 
 test('zero allocation, zero eligibility, share caps and verdict boundaries are defined', () => {

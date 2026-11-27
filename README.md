@@ -58,6 +58,17 @@ zero allocation and eligibility. Invalid URL values fall back to the defaults.
 The mobile drawer isolates background controls and supports Tab, Shift+Tab,
 Escape and focus restoration.
 
+Every ranked plan now itemizes six stages: verify the route, check eligibility,
+pilot, allocate, monitor and exit. Each stage states its cost, gas transactions
+and minutes; those amounts reconcile to the displayed totals. The pilot uses
+at most $100 before allocating the remaining capital. Transaction budgets
+include approvals and revocations: five for a default single-asset plan, seven
+for a paired-asset DEX plan, with one fewer when the pilot is the full deposit.
+Weekly reviews occur before the exit date. Category-specific entry and exit
+recipes cover 185 of 195 ranked protocols; unsupported categories explicitly
+require a documented reversible route before proceeding. These are scenario
+budgets, not observed fees or confirmed reward programs.
+
 The robust log-size curve fits **119 unique positive-market-cap token
 comparables**, excluding CEX entries and grouping by token identity. The exact
 ranked-value function achieves **3.39× median factor error vs. 5.24×** for the
@@ -117,8 +128,10 @@ without replacing the committed screenshots:
 PLAYWRIGHT_MODULE=/absolute/path/to/node_modules/playwright node tools/capture.mjs /absolute/path/to/input/snapshot.json /tmp/orbit-preview --verify-only --compare-source
 ```
 
-The comparisons require identical layout metrics and computed colors. They allow
-native-control raster rounding of at most two channel levels on 0.01% of pixels.
+The comparisons require identical layout metrics and computed colors. Native
+number-input corners may vary by at most two channel levels, with a total
+allowance of 24 pixels per control. Any changed pixel outside those corners
+fails the comparison.
 
 `playwright-core` is also supported. To use an installed headless Chromium,
 set `PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/chromium` alongside `PLAYWRIGHT_MODULE`.

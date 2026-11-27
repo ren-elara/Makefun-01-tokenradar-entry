@@ -1,22 +1,22 @@
 # Reviewed false positives in the ignored, unmodified official kit CLI.
 # These identify source expressions and environment-variable names, not values.
 # Individual fingerprints keep new findings in this file subject to scanning.
-token-radar-01-kit/cli/makefun.mjs:discord-client-secret:192400
-token-radar-01-kit/cli/makefun.mjs:discord-client-secret:192401
-token-radar-01-kit/cli/makefun.mjs:discord-client-secret:192403
-token-radar-01-kit/cli/makefun.mjs:discord-client-secret:192407
-token-radar-01-kit/cli/makefun.mjs:discord-client-secret:192410
-token-radar-01-kit/cli/makefun.mjs:generic-api-key:205960
-token-radar-01-kit/cli/makefun.mjs:generic-api-key:442082
-token-radar-01-kit/cli/makefun.mjs:generic-api-key:442365
-token-radar-01-kit/cli/makefun.mjs:generic-api-key:570919
-token-radar-01-kit/cli/makefun.mjs:generic-api-key:624016
-token-radar-01-kit/cli/makefun.mjs:generic-api-key:677813
-token-radar-01-kit/cli/makefun.mjs:generic-api-key:687799
-token-radar-01-kit/cli/makefun.mjs:generic-api-key:688248
-token-radar-01-kit/cli/makefun.mjs:generic-api-key:703333
-token-radar-01-kit/cli/makefun.mjs:generic-api-key:728612
-token-radar-01-kit/cli/makefun.mjs:generic-api-key:737079
-token-radar-01-kit/cli/makefun.mjs:generic-api-key:761060
-token-radar-01-kit/cli/makefun.mjs:generic-api-key:861180
-token-radar-01-kit/cli/makefun.mjs:generic-api-key:893607
+token-radar-01-kit/cli/makefun.mjs:discord-client-secret:192531
+token-radar-01-kit/cli/makefun.mjs:discord-client-secret:192532
+token-radar-01-kit/cli/makefun.mjs:discord-client-secret:192534
+token-radar-01-kit/cli/makefun.mjs:discord-client-secret:192538
+token-radar-01-kit/cli/makefun.mjs:discord-client-secret:192541
+token-radar-01-kit/cli/makefun.mjs:generic-api-key:206091
+token-radar-01-kit/cli/makefun.mjs:generic-api-key:442883
+token-radar-01-kit/cli/makefun.mjs:generic-api-key:443166
+token-radar-01-kit/cli/makefun.mjs:generic-api-key:580870
+token-radar-01-kit/cli/makefun.mjs:generic-api-key:628351
+token-radar-01-kit/cli/makefun.mjs:generic-api-key:678742
+token-radar-01-kit/cli/makefun.mjs:generic-api-key:689276
+token-radar-01-kit/cli/makefun.mjs:generic-api-key:689725
+token-radar-01-kit/cli/makefun.mjs:generic-api-key:704810
+token-radar-01-kit/cli/makefun.mjs:generic-api-key:737543
+token-radar-01-kit/cli/makefun.mjs:generic-api-key:746013
+token-radar-01-kit/cli/makefun.mjs:generic-api-key:770760
+token-radar-01-kit/cli/makefun.mjs:generic-api-key:868185
+token-radar-01-kit/cli/makefun.mjs:generic-api-key:900731

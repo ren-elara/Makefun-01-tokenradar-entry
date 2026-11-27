@@ -36,7 +36,7 @@ if (process.argv.includes('--compare-source')) {
     await page.emulateMedia({ colorScheme });
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: width === 1440 ? 1000 : 844 });
-      for (const query of ['', '?protocol=firelight', '?quick=worth&category=Yield']) {
+      for (const query of ['', '?protocol=curvance', '?quick=worth&category=Yield']) {
         const images = [];
         const layouts = [];
         for (const url of [base, readable]) {
@@ -50,22 +50,27 @@ if (process.argv.includes('--compare-source')) {
         assert.deepEqual(layouts[0], layouts[1], `Compiled layout differs: ${colorScheme}, ${width}px, ${query || 'board'}`);
         if (!images[0].equals(images[1])) {
           const difference = await page.evaluate(async encoded => {
+            const controls = [...document.querySelectorAll('input[type="number"]')].map(element => element.getBoundingClientRect());
             const pixels = await Promise.all(encoded.map(async value => {
               const image = new Image(); image.src = 'data:image/png;base64,' + value; await image.decode();
               const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
               const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
               return context.getImageData(0, 0, image.width, image.height);
             }));
-            let count = 0, maxDelta = 0;
+            let count = 0, maxDelta = 0, outsideControlCorners = 0;
             for (let i = 0; i < pixels[0].data.length; i += 4) {
               if ([0, 1, 2, 3].some(channel => pixels[0].data[i + channel] !== pixels[1].data[i + channel])) {
                 count++; maxDelta = Math.max(maxDelta, ...[0, 1, 2, 3].map(channel => Math.abs(pixels[0].data[i + channel] - pixels[1].data[i + channel])));
+                const x = (i / 4) % pixels[0].width + 0.5, y = Math.floor(i / 4 / pixels[0].width) + 0.5;
+                const corner = controls.some(box => x >= box.left - 1 && x <= box.right + 1 && y >= box.top - 1 && y <= box.bottom + 1 &&
+                  Math.min(Math.abs(x - box.left), Math.abs(x - box.right)) <= 8 && Math.min(Math.abs(y - box.top), Math.abs(y - box.bottom)) <= 8);
+                if (!corner) outsideControlCorners++;
               }
             }
-            return { count, maxDelta, total: pixels[0].width * pixels[0].height };
+            return { count, maxDelta, outsideControlCorners, controls: controls.length, total: pixels[0].width * pixels[0].height };
           }, images.map(image => image.toString('base64')));
-          // Native rounded input edges can vary by two channel levels between paints.
-          const equivalent = difference.maxDelta <= 2 && difference.count <= Math.ceil(difference.total / 10000);
+          // Repainting the same native input can change corner antialiasing by two levels.
+          const equivalent = difference.maxDelta <= 2 && difference.outsideControlCorners === 0 && difference.count <= 24 * difference.controls;
           if (!equivalent) {
             writeFileSync(output + '/mismatch-built.png', images[0]); writeFileSync(output + '/mismatch-readable.png', images[1]);
           }
@@ -74,14 +79,23 @@ if (process.argv.includes('--compare-source')) {
         }
         visualComparisons++;
       }
+      console.log('visual', colorScheme, width, { visualComparisons, rasterRoundingPixels });
     }
   }
   await page.emulateMedia({ colorScheme: 'light' });
   await page.setViewportSize({ width: 1440, height: 1000 });
 }
-for (const [name, query] of process.argv.includes('--verify-only') ? [] : [['board', ''], ['detail', '?protocol=firelight'], ['filtered', '?quick=worth&category=Yield']]) {
+for (const [name, query] of process.argv.includes('--verify-only') ? [] : [['board', ''], ['detail', '?protocol=curvance'], ['filtered', '?quick=worth&category=Yield']]) {
+  await page.setViewportSize({ width: 1440, height: name === 'detail' ? 1440 : 1000 });
   await page.goto(base + query);
   await page.waitForFunction(() => window.ORBIT_READY === true);
+  if (name === 'detail') {
+    await page.locator('#detail-panel').scrollIntoViewIfNeeded();
+    assert.ok(await page.locator('#detail-panel ol li').last().evaluate(element => {
+      const box = element.getBoundingClientRect(), panel = element.closest('aside').getBoundingClientRect();
+      return box.top >= panel.top && box.bottom <= Math.min(innerHeight, panel.bottom);
+    }), 'The detail screenshot must show the complete six-stage plan');
+  }
   await page.screenshot({ path: root + '/screenshots/' + name + '.jpg', type: 'jpeg', quality: 88 });
   console.log(name, await page.locator('#result-count').textContent(), await page.locator('#detail-panel h2').textContent());
 }
@@ -89,6 +103,9 @@ for (const [name, query] of process.argv.includes('--verify-only') ? [] : [['boa
 await page.goto(base);
 await page.waitForFunction(() => window.ORBIT_READY === true);
 if (await page.locator('#protocol-rows tr').count() !== data.rows.length) throw new Error('Rendered board row count mismatch');
+const firstPlan = data.rows[0].farm;
+assert.deepEqual(await page.locator('#detail-panel ol li').allTextContents(), firstPlan.steps);
+assert.ok((await page.locator('#detail-panel').textContent()).includes(firstPlan.transactions + ' gas tx + execution + capital'));
 await page.locator('#search').fill('steakhouse');
 if (await page.locator('#protocol-rows tr').count() !== 1) throw new Error('Search failed');
 await page.locator('#reset-filters').click();
@@ -101,6 +118,9 @@ const selected = await page.locator('#detail-panel h2').textContent();
 await page.locator('[data-setting="deposit"]').fill('1000');
 await page.locator('[data-setting="deposit"]').dispatchEvent('change');
 if (!(await page.locator('#scenario-notice').textContent()).includes('$1,000')) throw new Error('Scenario update failed');
+const selectedRow = data.rows.find(row => row.name === selected);
+const editedPlan = O.plan(selectedRow, selectedRow.implied_value_usd, [selectedRow.band_low_usd, selectedRow.band_high_usd], selectedRow.age_days, { ...data.settings, deposit: 1000 });
+assert.deepEqual(await page.locator('#detail-panel ol li').allTextContents(), editedPlan.steps);
 assert.equal(new URL(page.url()).searchParams.get('deposit'), '1000');
 await page.reload(); await page.waitForFunction(() => window.ORBIT_READY === true);
 assert.equal(await page.locator('#detail-panel h2').textContent(), selected);
