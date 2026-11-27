@@ -104,7 +104,16 @@ await page.goto(base);
 await page.waitForFunction(() => window.ORBIT_READY === true);
 if (await page.locator('#protocol-rows tr').count() !== data.rows.length) throw new Error('Rendered board row count mismatch');
 const firstPlan = data.rows[0].farm;
-assert.deepEqual(await page.locator('#detail-panel ol li').allTextContents(), firstPlan.steps);
+const assertRenderedPlan = async plan => {
+  const stages = await page.locator('#detail-panel ol li').allTextContents();
+  assert.equal(stages.length, plan.stages.length);
+  for (const [index, stage] of plan.stages.entries()) {
+    assert.ok(stages[index].includes(stage.title), stage.title);
+    assert.ok(stages[index].includes(stage.action), stage.title + ' action');
+    assert.ok(stages[index].includes(stage.budget), stage.title + ' engine budget');
+  }
+};
+await assertRenderedPlan(firstPlan);
 assert.ok((await page.locator('#detail-panel').textContent()).includes(firstPlan.transactions + ' gas tx + execution + capital'));
 await page.locator('#search').fill('steakhouse');
 if (await page.locator('#protocol-rows tr').count() !== 1) throw new Error('Search failed');
@@ -120,7 +129,7 @@ await page.locator('[data-setting="deposit"]').dispatchEvent('change');
 if (!(await page.locator('#scenario-notice').textContent()).includes('$1,000')) throw new Error('Scenario update failed');
 const selectedRow = data.rows.find(row => row.name === selected);
 const editedPlan = O.plan(selectedRow, selectedRow.implied_value_usd, [selectedRow.band_low_usd, selectedRow.band_high_usd], selectedRow.age_days, { ...data.settings, deposit: 1000 });
-assert.deepEqual(await page.locator('#detail-panel ol li').allTextContents(), editedPlan.steps);
+await assertRenderedPlan(editedPlan);
 assert.equal(new URL(page.url()).searchParams.get('deposit'), '1000');
 await page.reload(); await page.waitForFunction(() => window.ORBIT_READY === true);
 assert.equal(await page.locator('#detail-panel h2').textContent(), selected);
@@ -209,8 +218,89 @@ assert.equal(await page.evaluate(() => document.activeElement.id), 'detail-panel
 await page.emulateMedia({ colorScheme: 'dark' });
 await page.keyboard.press('Escape');
 assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+const interactionAudit = { statusTabs: 0, filterCases: 0, detailDrawers: 0, views: 0 };
+for (const width of [1440, 390]) {
+  await page.setViewportSize({ width, height: width === 1440 ? 1000 : 844 });
+  await page.goto(base); await page.waitForFunction(() => window.ORBIT_READY === true);
+  await page.locator('#close-detail').evaluate(button => button.click());
+  assert.equal(await page.locator('#match-indicator').textContent(), 'board.json ↔ page · 195 shared engine ranks & values');
+  for (const status of ['Ranked', 'Traded', 'Set aside']) {
+    await page.locator(`[data-status="${status}"]`).click();
+    const source = status === 'Ranked' ? data.rows : data.universe.filter(row => row.status === status);
+    const expected = filters => O.sortRows(O.filterRows(source, { ...filters, asOf: data.as_of }), {
+      key: status === 'Traded' ? 'mcap_usd' : 'rank', direction: status === 'Traded' ? -1 : 1, status,
+    }).map(row => row.slug);
+    assert.ok(source.length > 0);
+    assert.deepEqual(await slugs(), expected({}));
+    interactionAudit.statusTabs++;
+    for (const key of ['momentum', 'risk', 'category', 'chain']) {
+      const options = await page.locator(`#${key}-filter option`).evaluateAll(options => options.map(option => option.value).filter(Boolean));
+      for (const value of options) {
+        await page.locator(`#${key}-filter`).selectOption(value);
+        const matches = expected({ [key]: value });
+        assert.deepEqual(await slugs(), matches, `${width}px ${status} ${key}=${value}`);
+        assert.equal(await page.locator('#empty-state').isVisible(), matches.length === 0);
+        interactionAudit.filterCases++;
+      }
+      await page.locator(`#${key}-filter`).selectOption('');
+      console.log('filter audit', width, status, key, options.length);
+    }
+  }
+  await page.locator('[data-status="Ranked"]').click();
+  for (const quick of ['watch', 'worth', 'pilot']) {
+    await page.locator(`[data-quick="${quick}"]`).click();
+    const matches = O.filterRows(data.rows, { quick }).map(row => row.slug);
+    assert.deepEqual(await slugs(), matches);
+    assert.equal(await page.locator('#empty-state').isVisible(), matches.length === 0);
+    await page.locator('#reset-filters').click();
+    interactionAudit.filterCases++;
+  }
+  await page.goto(base + '?quick=pilot&gas=0&opportunity=0');
+  await page.waitForFunction(() => window.ORBIT_READY === true);
+  const pilotRows = data.rows.map(row => ({ ...row, farm: O.plan(row, row.implied_value_usd,
+    [row.band_low_usd, row.band_high_usd], row.age_days, { ...data.settings, gas: 0, opportunity: 0 }) }));
+  const pilotSlugs = O.filterRows(pilotRows, { quick: 'pilot' }).map(row => row.slug);
+  assert.ok(pilotSlugs.length > 0);
+  assert.deepEqual(await slugs(), pilotSlugs);
+  interactionAudit.filterCases++;
+  await page.goto(base); await page.waitForFunction(() => window.ORBIT_READY === true);
+  for (const view of ['model', 'universe', 'board']) {
+    await page.locator(`[data-view="${view}"]`).first().click();
+    assert.ok(await page.locator(`#${view}-view`).isVisible());
+    assert.ok((await page.locator(`#${view}-view`).textContent()).trim());
+    interactionAudit.views++;
+  }
+  // Exercise the same row event used by both tables, then inspect every drawer.
+  for (let start = 0; start < data.universe.length; start += 20) {
+    const result = await page.evaluate(({ start, end }) => {
+      const data = window.ORBIT_DATA, engine = window.ORBIT;
+      const ranked = new Map(data.rows.map(row => [row.slug, row]));
+      const triggers = [...document.querySelectorAll('#universe-rows tr')];
+      const failures = [];
+      for (let index = start; index < end; index++) {
+        const row = data.universe[index];
+        triggers[index].click();
+        const panel = document.querySelector('#detail-panel');
+        if (panel.querySelector('h2')?.textContent !== row.name) failures.push(row.slug);
+        const candidate = ranked.get(row.slug);
+        if (candidate) {
+          const farm = engine.plan(candidate, candidate.implied_value_usd, [candidate.band_low_usd, candidate.band_high_usd], candidate.age_days, data.settings);
+          const stages = [...panel.querySelectorAll('ol li')];
+          if (stages.length !== 6 || stages.some((element, stage) => !element.textContent.includes(farm.stages[stage].budget))) failures.push(row.slug + ':plan');
+        } else if (!panel.textContent.includes(row.reason)) failures.push(row.slug + ':reason');
+      }
+      if (!document.querySelector('#detail-panel').checkVisibility()) failures.push('drawer hidden');
+      return failures;
+    }, { start, end: Math.min(start + 20, data.universe.length) });
+    assert.deepEqual(result, [], `${width}px detail batch ${start}`);
+    interactionAudit.detailDrawers += Math.min(20, data.universe.length - start);
+  }
+  await page.keyboard.press('Escape');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+  console.log('interaction audit', width, interactionAudit);
+}
 if (errors.length || network.length) throw new Error(JSON.stringify({ errors, network }));
-console.log(JSON.stringify({ offline: true, rows: data.rows.length, watchlist: snapshot.watchlist.length, universe: snapshot.protocols.length, scenario: true, scenarioLinks: true, sorting: true, selected, csv: true, transitions: true, zeroAllocation: true, formulaEscaping: true, uncategorized: true, focus: true, mobile: true, modalKeyboard: true, darkMode: true, visualComparisons, rasterRoundingPixels, errors, network }));
+console.log(JSON.stringify({ offline: true, rows: data.rows.length, watchlist: snapshot.watchlist.length, universe: snapshot.protocols.length, scenario: true, scenarioLinks: true, sorting: true, selected, csv: true, transitions: true, zeroAllocation: true, formulaEscaping: true, uncategorized: true, focus: true, mobile: true, modalKeyboard: true, darkMode: true, visualComparisons, rasterRoundingPixels, interactionAudit, errors, network }));
 } finally {
   await browser.close();
 }

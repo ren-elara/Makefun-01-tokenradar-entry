@@ -46,6 +46,17 @@ test('all historical exports remain available in CommonJS and the browser', () =
 });
 
 test('the complete snapshot is partitioned and the official watchlist is ranked', () => {
+  assert.equal(board.rows.length, 195);
+  assert.equal(board.traded_size, 416);
+  assert.equal(board.excluded_size, 147);
+  assert.equal(board.model.n, 119);
+  assert.equal(board.model.formula, 'exp(16.5371 + 0.4928 × ln(TVL / $100M)) × growth × seasoning');
+  assert.equal(board.model.cv.median_multiple, 3.39);
+  assert.equal(board.model.cv.rank_r, 0.34);
+  for (const name of ['WBTC', 'Coinbase Bridge', 'Binance staked ETH', 'USDT0']) {
+    assert.ok(snapshot.protocols.some(row => row.name.toLowerCase() === name.toLowerCase()), name);
+    assert.ok(!board.rows.some(row => row.name.toLowerCase() === name.toLowerCase()), name);
+  }
   assert.equal(board.universe.length, snapshot.protocols.length);
   assert.equal(board.rows.length + board.traded_size + board.excluded_size, snapshot.protocols.length);
   assert.ok(board.rows.length >= 100);
@@ -218,7 +229,19 @@ test('every ranked plan reconciles its six stages to the total cost, gas and tim
       assert.ok(Number.isFinite(stage.cost) && stage.cost >= 0);
       assert.ok(farm.steps[index].includes(`Cost: $${stage.cost.toFixed(2)}`));
       assert.ok(farm.steps[index].includes(`Time: ${stage.minutes} minutes.`));
+      assert.ok(farm.steps[index].includes('Capital:'));
+      assert.ok(farm.steps[index].includes('Gas estimate:'));
+      assert.ok(farm.steps[index].includes(`Hold: ${index === 4 ? settings.days : 0} days.`));
+      assert.ok(farm.steps[index].includes('Opportunity cost:'));
+      closeTo(stage.gas_usd + stage.execution_usd + stage.opportunity_usd, stage.cost);
+      closeTo(stage.gas_usd, stage.transactions * settings.gas);
+      assert.ok(farm.steps[index].includes(stage.budget));
     }
+    closeTo(farm.stages[2].capital_usd + farm.stages[3].capital_usd, settings.deposit);
+    closeTo(farm.stages[4].opportunity_usd, settings.deposit * settings.opportunity / 100 * settings.days / 365);
+    assert.equal(farm.stages[4].hold_days, settings.days);
+    closeTo(farm.stages.reduce((total, stage) => total + stage.gas_usd, 0), farm.gasCost);
+    closeTo(farm.stages.reduce((total, stage) => total + stage.execution_usd, 0), farm.slippage);
   }
 });
 

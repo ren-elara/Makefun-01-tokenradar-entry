@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, lstatSync } from 'node:fs';
 import { join, resolve, extname } from 'node:path';
 import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { runInNewContext } from 'node:vm';
 import { buildDossier } from '../vendor/makefun-board.ts';
 
 const out = resolve(process.argv[2] || './out');
@@ -10,6 +12,13 @@ const input = process.argv[3];
 if (!input) throw new Error('Usage: node tools/verify-output.mjs <output-dir> <snapshot.json>');
 const snapshot = JSON.parse(readFileSync(input, 'utf8'));
 const rows = JSON.parse(readFileSync(join(out, 'board.json'), 'utf8')).rows;
+const engine = createRequire(import.meta.url)('../dashboard/engine.js');
+const derived = engine.derive(snapshot);
+const client = { window: {} };
+runInNewContext(readFileSync(join(out, 'data.js'), 'utf8'), client);
+const clientRows = JSON.parse(JSON.stringify(client.window.ORBIT_DATA.rows));
+assert.equal(rows.length, derived.rows.length);
+assert.deepEqual(clientRows, derived.rows, 'Browser data differs from the shared engine');
 assert.ok(rows.length >= 100 && rows.length <= 4000);
 assert.ok(lstatSync(join(out, 'board.json')).size <= 8 * 1024 * 1024);
 const valid = new Set(snapshot.protocols.map((p) => p.slug)), seen = new Set();
@@ -23,6 +32,13 @@ for (const [i, row] of ranks.entries()) {
   if (i) assert.ok(row.implied_value_usd <= ranks[i - 1].implied_value_usd);
   assert.ok(Array.isArray(row.farm_steps) && row.farm_steps.length >= 3 && row.farm_steps.length <= 12);
   for (const step of row.farm_steps) assert.ok(typeof step === 'string' && step.trim().length >= 20 && step.trim().length <= 600);
+  const expected = derived.rows[i];
+  assert.equal(row.slug, expected.slug);
+  assert.equal(row.implied_value_usd, expected.implied_value_usd);
+  assert.deepEqual(row.farm_steps, expected.farm.steps);
+  assert.deepEqual(row.farm_scenario.stages, expected.farm.stages);
+  assert.equal(row.farm_scenario.net_usd, expected.farm.net);
+  assert.equal(row.farm_scenario.cost_usd, expected.farm.cost);
 }
 assert.ok(new Set(rows.map((r) => r.implied_value_usd)).size > 1);
 for (const slug of snapshot.watchlist) assert.ok(seen.has(slug));

@@ -59,8 +59,11 @@ The mobile drawer isolates background controls and supports Tab, Shift+Tab,
 Escape and focus restoration.
 
 Every ranked plan now itemizes six stages: verify the route, check eligibility,
-pilot, allocate, monitor and exit. Each stage states its cost, gas transactions
-and minutes; those amounts reconcile to the displayed totals. The pilot uses
+pilot, allocate, monitor and exit. The execution checklist shows each stage's
+capital, gas estimate, execution allowance, hold days, opportunity cost and
+minutes. The monitor stage spells out deposit × capital APR × days / 365.
+Those amounts reconcile to the displayed totals, and the same stage objects
+and scenario economics are exported in `board.json`. The pilot uses
 at most $100 before allocating the remaining capital. Transaction budgets
 include approvals and revocations: five for a default single-asset plan, seven
 for a paired-asset DEX plan, with one fewer when the pilot is the full deposit.

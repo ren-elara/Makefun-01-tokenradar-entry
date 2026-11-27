@@ -207,6 +207,9 @@ tbody tr:focus-visible { outline-offset: -3px; }
 .scenario-grid input:invalid { border-color: var(--red); }
 .detail-plan { display: grid; gap: 12px; margin: 0; padding-left: 20px; color: var(--muted); font-size: 12px; }
 .detail-plan li::marker { color: var(--green); font-family: var(--mono); }
+.detail-plan b { color: var(--ink); }
+.detail-plan p { margin: 4px 0; }
+.detail-plan small { display: block; color: var(--green); font-size: 10px; }
 .detail-peers { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .detail-peers li { padding: 9px; border-radius: 6px; background: var(--surface-raised); font-size: 11px; }
 .detail-peers b { display: block; }

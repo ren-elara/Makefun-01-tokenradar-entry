@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="ORBIT is an offline token launch research radar with transparent conditional valuations and snapshot signals.">
+  <meta name="description" content="Offline token launch radar: fitted valuations, snapshot signals and execution checklists.">
   <title>ORBIT | Token launch radar</title>
   <link rel="stylesheet" href="app.css">
   <link rel="stylesheet" href="focus.css">
@@ -33,7 +33,7 @@
   </header>
 
   <main id="main-content" tabindex="-1">
-    <noscript><p class="app-error">Enable JavaScript to explore the local snapshot. No network connection is required.</p></noscript>
+    <noscript><p class="app-error">Enable JavaScript. The snapshot works offline.</p></noscript>
     <div id="app-error" class="app-error" role="alert" hidden></div>
 
     <section class="metric-strip" aria-label="Snapshot summary">
@@ -68,7 +68,7 @@
       <div class="method-copy">
         <span class="eyebrow">TOKEN LAUNCH RADAR</span>
         <h1 id="radar-title">What might a token be worth?</h1>
-        <p>Compare protocols through a conditional market-cap estimate, snapshot momentum and visible risk flags. Launch intent, rewards and contract safety are unobserved.</p>
+        <p>Conditional market caps, TVL momentum and risk flags. Launch intent, rewards and safety are unobserved.</p>
         <div class="formula-line">
           <span class="label-chip">VALUE CURVE</span>
           <code id="formula">Loading the local valuation model</code>
@@ -80,7 +80,7 @@
           <span class="chart-legend"><i aria-hidden="true"></i>observed <b aria-hidden="true"></b>fitted curve</span>
         </figcaption>
         <canvas id="model-chart" width="760" height="280" role="img" aria-label="Observed market caps versus TVL, fitted curve and cross-fitted residual band, on logarithmic axes" aria-describedby="fit-sample">
-          Market-cap and TVL data are also available in the Universe table. Model coefficients and validation metrics appear in Model lab.
+          Data: Universe. Coefficients and validation: Model lab.
         </canvas>
         <div class="axis-foot"><span id="fit-sample">Loading comparables</span><span>USD · log scale</span></div>
       </figure>
@@ -143,7 +143,7 @@
     <section class="board-layout" id="board-view" aria-label="Token radar and protocol details">
       <div class="table-wrap">
         <table id="protocol-table" aria-describedby="signal-key">
-          <caption id="signal-key">Snapshot signals: Growing ≥ +5% TVL / 7D; Fading ≤ −5%. Risk flags describe missing context, recent tracking, product exclusions or a ≥15% drawdown. Unassessed does not mean safe.</caption>
+          <caption id="signal-key">Growing ≥ +5% TVL / 7D; Fading ≤ −5%. Risk flags: missing context, recent tracking, excluded products or ≥15% drawdown. Unassessed does not mean safe.</caption>
           <thead>
             <tr>
               <th scope="col" class="rank-col" aria-sort="ascending"><button type="button" data-sort="rank"># <span aria-hidden="true">↕</span></button></th>
@@ -163,13 +163,13 @@
         <p class="empty-state" id="empty-state" hidden>No protocols match these filters. Use Reset filters to see this status again.</p>
       </div>
       <aside class="detail-panel" id="detail-panel" aria-label="Protocol details" tabindex="-1">
-        <div class="detail-empty"><span class="detail-icon" aria-hidden="true">↗</span><span class="eyebrow">PROTOCOL BRIEF</span><h2>Select a protocol</h2><p>Inspect its value construction, risk context, scenario economics and interaction plan.</p></div>
+        <div class="detail-empty"><span class="detail-icon" aria-hidden="true">↗</span><span class="eyebrow">PROTOCOL BRIEF</span><h2>Select a protocol</h2><p>Inspect its value, signals and execution checklist.</p></div>
       </aside>
     </section>
 
     <section class="research-view" id="model-view" aria-labelledby="model-title" hidden>
       <div class="section-head">
-        <div><span class="eyebrow">MODEL LAB · ORBIT 1.1</span><h2 id="model-title">A transparent conditional value curve.</h2><p>One robust Huber fit of log market cap against log TVL, trained on unique positive-cap comparables. Growth and tracking age are visible heuristics. The snapshot supplies no measured launch probability.</p></div>
+        <div><span class="eyebrow">MODEL LAB · ORBIT 1.1</span><h2 id="model-title">A transparent conditional value curve.</h2><p>Huber log-cap/TVL fit on unique positive-cap tokens. Growth and age are heuristics; launch odds unobserved.</p></div>
         <div class="model-badge">CONDITIONAL VALUE<br><b>LAUNCH ODDS UNOBSERVED</b></div>
       </div>
       <div class="research-grid">
@@ -179,7 +179,7 @@
           <div class="coefficient-row"><span>TVL elasticity, β</span><b id="fit-beta">—</b></div>
           <div class="coefficient-row"><span>Comparable count</span><b id="fit-n">—</b></div>
           <div class="coefficient-row"><span>Residual band · P10 / P90</span><b id="fit-band">—</b></div>
-          <p class="fine-print">Cross-fitted residual percentiles describe traded-token dispersion. They do not form a confidence interval for an individual future token.</p>
+          <p class="fine-print">Residual bands: traded-token dispersion, not future-token confidence intervals.</p>
         </article>
         <article class="research-block">
           <span class="eyebrow">GROUPED VALIDATION</span><h3>Five deterministic identity folds</h3>
@@ -190,7 +190,7 @@
           </div>
           <div class="coefficient-row"><span>Within 3×</span><b id="lab-within">—</b></div>
           <div class="coefficient-row"><span>Spearman rank</span><b id="lab-rank">—</b></div>
-          <p class="fine-print">Identity grouping prevents the same token entering both sides of a fold. This evaluates a traded-token cross-section rather than a future-launch backtest.</p>
+          <p class="fine-print">One fold per token identity; traded cross-section, not a launch backtest.</p>
         </article>
         <article class="research-block">
           <span class="eyebrow">NEWER TRACKING COHORT</span><h3 id="cohort-title">Loading cohort</h3>
@@ -200,15 +200,15 @@
             <div><b id="cohort-within">—</b><span>within 3×</span></div>
             <div><b id="cohort-rank">—</b><span>rank correlation</span></div>
           </div>
-          <p class="fine-print">Training uses the earlier cohort when it has at least eight comparables; otherwise the full fit is used. Small cohorts produce unstable estimates. Tracking start is not token-launch date.</p>
+          <p class="fine-print">Fit uses ≥8 earlier anchors, else all anchors. Small cohorts are unstable. Tracking start is not launch date.</p>
         </article>
         <article class="research-block wide">
           <span class="eyebrow">READ THE EVIDENCE</span><h3>What these signals describe</h3>
           <div class="limits-grid">
-            <div><b>Observed</b><p>TVL, seven-day TVL change, tracking date, token record, category and chain labels at one frozen date.</p></div>
-            <div><b>Unobserved</b><p>Launch intent, allocation, fees, holders, wallet eligibility, tokenomics, security audits and historical market cap.</p></div>
-            <div><b>Selection effect</b><p>Comparables are surviving traded tokens. Their valuation dispersion cannot establish launch odds for another protocol.</p></div>
-            <div><b>Missing values</b><p>Missing dates display unknown and use 365 days for seasoning. Missing change uses neutral growth and Unknown momentum.</p></div>
+            <div><b>Observed</b><p>Frozen TVL, 7D change, tracking date, token record, category and chains.</p></div>
+            <div><b>Unobserved</b><p>Launch intent, rewards, eligibility, fees, holders, tokenomics, audits and cap history.</p></div>
+            <div><b>Selection effect</b><p>Surviving traded tokens cannot establish another protocol's launch odds.</p></div>
+            <div><b>Missing values</b><p>Unknown dates use 365d seasoning. Missing change uses neutral growth and Unknown momentum.</p></div>
           </div>
         </article>
       </div>
@@ -216,7 +216,7 @@
 
     <section class="research-view" id="universe-view" aria-labelledby="universe-title" hidden>
       <div class="section-head">
-        <div><span class="eyebrow">SNAPSHOT AUDIT</span><h2 id="universe-title">Every protocol has a place.</h2><p>Every snapshot row is retained with its classification reason. The official watchlist is authoritative; other versions, exchanges and excluded product categories are set aside from the pre-token ranking.</p></div>
+        <div><span class="eyebrow">SNAPSHOT AUDIT</span><h2 id="universe-title">Every protocol has a place.</h2><p>Every row retains its reason. Watchlist overrides are explicit; other versions, exchanges and excluded products stay outside rankings.</p></div>
         <div class="model-badge">FROZEN SOURCE<br><b id="universe-source">Loading snapshot</b></div>
       </div>
       <div class="audit-summary" id="audit-summary"></div>

@@ -311,7 +311,7 @@
         ${fact('Tracking seasoning', factors.seasoning.toFixed(3) + '×')}
         ${fact('TVL · 7D change', engine.fmt(row.tvl_usd) + ' · ' + delta(row.change_7d))}
         ${fact('Tracking start', (row.listed_at || 'unknown') + ' · ' + ageLabel(row.age_days))}
-        <p class="fine-print">Growth = 1 + 0.15 × capped change / 100. Seasoning = 0.85 + 0.15 × min(days,730)/730; unknown uses 365d. Regression is fitted only to TVL. Neither adjustment estimates launch odds.</p>
+        <p class="fine-print">Growth = 1 + 0.15 × capped change/100. Seasoning = 0.85 + 0.15 × min(days,730)/730; unknown: 365d. Fit: TVL only. Launch odds unobserved.</p>
       </div>
       <div class="detail-block"><h3>Farm economics <span class="pill ${farm.verdict}">${farm.verdict}</span></h3>
         <div class="scenario-grid">${settings.map(([key, label]) => `<label>${label}<input data-setting="${key}" type="number" required min="${engine.LIMITS[key][0]}" max="${engine.LIMITS[key][1]}" step="any" value="${state.settings[key]}"></label>`).join('')}</div>
@@ -323,8 +323,8 @@
         <p class="fine-print">${escape(farm.assumptions)}</p>
       </div>
       ${signalBlock}
-      <div class="detail-block"><h3>Pilot → allocate → exit</h3><ol class="detail-plan">${farm.steps.map(step => `<li>${escape(step.trim())}</li>`).join('')}</ol></div>
-      <div class="detail-block"><h3>Nearby traded comparables</h3>${peers.length ? `<ul class="detail-peers">${peers.map(peer => `<li><b>${escape(peer.name)}</b><span>${engine.fmt(peer.tvl_usd)} TVL · ${engine.fmt(peer.mcap_usd)} recorded cap</span></li>`).join('')}</ul>` : '<p class="fine-print">No positive-TVL comparables in this category.</p>'}<p class="fine-print">Nearest by log TVL within the category. The pooled fit uses every eligible comparable.</p></div>`;
+      <div class="detail-block"><h3>Execution checklist</h3><ol class="detail-plan">${farm.stages.map(stage => `<li><b>${escape(stage.title)} · ${money(stage.cost)} · ${stage.minutes} min</b><p>${escape(stage.action)}</p><small>${escape(stage.budget)}</small></li>`).join('')}</ol></div>
+      <div class="detail-block"><h3>Nearby traded comparables</h3>${peers.length ? `<ul class="detail-peers">${peers.map(peer => `<li><b>${escape(peer.name)}</b><span>${engine.fmt(peer.tvl_usd)} TVL · ${engine.fmt(peer.mcap_usd)} recorded cap</span></li>`).join('')}</ul>` : '<p class="fine-print">No positive-TVL category peers.</p>'}<p class="fine-print">Nearest category peers by log TVL; pooled fit uses all eligible anchors.</p></div>`;
     syncLayout();
   }
 

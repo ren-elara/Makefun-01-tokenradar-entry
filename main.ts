@@ -54,6 +54,18 @@ const board = data.rows.map((p: any) => ({
   watchlist: p.watchlist,
   model: data.version,
   farm_steps: p.farm.steps,
+  farm_scenario: {
+    ...data.settings,
+    verdict: p.farm.verdict,
+    gross_usd: p.farm.gross,
+    net_usd: p.farm.net,
+    p10_net_usd: p.farm.netLow,
+    cost_usd: p.farm.cost,
+    gas_usd: p.farm.gasCost,
+    execution_usd: p.farm.slippage,
+    opportunity_usd: p.farm.capitalCost,
+    stages: p.farm.stages,
+  },
 }));
 if (board.length < 100 || board.length > 4000) throw new Error(`Board has ${board.length} rows; expected 100–4000.`);
 const watch = new Set(data.rows.filter((p: any) => p.watchlist).map((p: any) => p.slug));

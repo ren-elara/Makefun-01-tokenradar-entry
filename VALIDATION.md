@@ -1,5 +1,50 @@
 # ORBIT validation record
 
+## Execution checklist budgets — 2026-11-27
+
+All **195 ranked protocols** now expose the capital, gas estimate, execution
+allowance, hold days and opportunity cost for each of their six stages. The
+monitor stage shows the calculation `deposit × capital APR × days / 365`.
+Pilot and allocation capital reconcile to the deposit; stage gas, execution
+and opportunity costs reconcile to the scenario total. Capital held or targeted
+for return is labeled separately from costs.
+
+The browser renders these stage objects directly from the shared engine.
+`board.json` exports the identical objects in `farm_scenario`, alongside the
+scenario assumptions, verdict and gross/net/P10 economics. The output verifier
+independently derives the source-engine rows and compares the generated browser
+data, board values, farm steps, stages, net and costs against them.
+
+- **34 unit tests passed, 0 failed**. Assertions preserve the 195 ranked,
+  416 traded and 147 set-aside partition; 119 model anchors; fitted formula;
+  3.39× grouped median factor error; 0.34 Spearman; and named product exclusions.
+- Two independent entrypoint runs passed all **seven output contract checks**.
+  All **11 output files matched byte for byte**. The pinned build's `--check`,
+  JavaScript syntax checks and `git diff --check` passed.
+- Dashboard assets total **64,828 bytes**, with every source included in full
+  in the official dossier. The dossier is **863,405 bytes**, SHA-256
+  `86138816e399a90da8f9cebdcfdd8903ae15e658c50d5af5dfdb8419c75d9f71`.
+- Offline Chromium passed **2,186 filter cases**, **1,516 detail drawers**,
+  six status-tab checks and six view transitions across **1440px** and **390px**
+  widths. Every category, chain, momentum and risk option matched the shared
+  engine. Scenario edits/reloads, quick filters, sorting, CSV escaping, keyboard
+  navigation and dark mode also passed. **Zero page errors or HTTP(S) requests**.
+- All **12 source-versus-built visual comparisons** passed across three views,
+  desktop/mobile and light/dark themes, with 81 permitted native-control corner
+  raster-rounding pixels in total. The three recaptured JPEGs were visually
+  reviewed; all six stages fit in the **1440×1440** Curvance detail. Board and
+  filtered views are **1440×1000**; the largest image is **262,069 bytes**.
+- All three exact live README badges returned **HTTP 200** with SVG content.
+- Official offline worktree preflight against the existing native OpenCode
+  archive returned **`ok: true`, no failed checks**. `thinking_reproduces`
+  passed above **53%**, exceeding the **30%** requirement, with authored
+  entrypoint lines.
+- Gitleaks reported **zero findings** in the working directory, Git history
+  and the existing extracted transcript archive.
+
+Local verification used Node **22.23.5**, the external tsx loader and headless
+Chromium flags described below. Official scoring remains server-side.
+
 ## Itemized farming plans — 2026-11-27
 
 The upgrade targets concrete farming plans, the third criterion in the sealed

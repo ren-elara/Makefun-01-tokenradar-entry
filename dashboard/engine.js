@@ -312,11 +312,20 @@
       stage('Monitor', `Check withdrawal access, TVL, permissions and rules ${reviews} times at 7-day intervals before day ${days}. Exit earlier if access or net worsens. Cost is capital allowance.`, 0, reviews * 5, capitalCost),
       stage('Exit', `${exit} by day ${days}; revoke allowances, verify returned principal and save withdrawal hash.`, approvals + 1, 10, gas * (approvals + 1)),
     ];
+    stages.forEach((item, index) => {
+      item.capital_usd = [0, 0, pilot, remaining, deposit, deposit][index];
+      item.gas_usd = item.transactions * gas;
+      item.execution_usd = index === 2 ? pilot * 0.001 : index === 3 ? remaining * 0.001 : 0;
+      item.hold_days = index === 4 ? days : 0;
+      item.opportunity_usd = index === 4 ? capitalCost : 0;
+      const capital = ['None', 'None', 'Deposit', 'Add', 'Hold', 'Return target'][index];
+      item.budget = `Capital: ${capital} $${item.capital_usd.toFixed(2)}. Gas estimate: $${item.gas_usd.toFixed(2)} (${item.transactions} tx). Execution: $${item.execution_usd.toFixed(2)}. Hold: ${item.hold_days} days. Opportunity cost: $${item.opportunity_usd.toFixed(2)}${index === 4 ? ` ($${deposit} × ${scenario.opportunity}% APR × ${days}/365)` : ''}.`;
+    });
     return {
       gross, low, cost, net, netLow, breakeven, verdict, family, slippage,
       pilot, remaining, reviews, transactions, gasCost, capitalCost, stages,
       hours: sum(stages.map(item => item.minutes)) / 60,
-      steps: stages.map(item => `${item.title}: ${item.action} Cost: $${item.cost.toFixed(2)} (${item.transactions} gas tx). Time: ${item.minutes} minutes.`),
+      steps: stages.map(item => `${item.title}: ${item.action} ${item.budget} Cost: $${item.cost.toFixed(2)}. Time: ${item.minutes} minutes.`),
       assumptions: `Category recipe, not verified eligibility. Assumed ${scenario.eligibility}% eligible share, ${scenario.allocation}% TVL-pro-rata allocation; ${transactions} gas tx at $${gas}, 0.1% execution, ${scenario.opportunity}% capital APR. Principal loss and labor excluded.`,
     };
   }
